@@ -1,0 +1,3819 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>火柴棒大逃亡：模組化外掛與全破畫面版</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  body {
+    background: #121016;
+    color: #f2ece1;
+    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+    height: 100dvh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .gb-console {
+    width: 100%;
+    max-width: 500px;
+    height: 100dvh;
+    max-height: 940px;
+    background: linear-gradient(165deg, #2b2836 0%, #1d1a24 60%, #14121a 100%);
+    border: 4px solid #3d384d;
+    border-radius: 26px 26px 48px 26px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.85), inset 0 2px 4px rgba(255,255,255,0.12);
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px 14px;
+    gap: 8px;
+    position: relative;
+  }
+
+  .gb-screen-bezel {
+    flex: 1.25;
+    min-height: 0;
+    background: #0d0b0e;
+    border: 4px solid #453f54;
+    border-radius: 14px 14px 24px 14px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    box-shadow: inset 0 4px 12px rgba(0,0,0,0.9);
+  }
+
+  .gb-hud {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #171314;
+    padding: 5px 8px;
+    border-radius: 8px;
+    border: 1px solid #332926;
+  }
+
+  .hud-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 900;
+    color: #f5b041;
+  }
+
+  .bars-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .bar-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .bar-bg {
+    flex: 1;
+    height: 10px;
+    background: #090707;
+    border: 1.5px solid #4d3d36;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  #hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #27ae60, #2ecc71); transition: width 0.08s; }
+  #heat-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #f39c12, #ff2a1a); transition: width 0.08s; }
+
+  .debug-row { display: flex; gap: 4px; justify-content: space-between; }
+  .mini-btn, .android-folder-btn {
+    flex: 1; background: #2b2320; color: #f5b041; border: 1px solid #634e42;
+    border-radius: 4px; padding: 3px 4px; font-size: 11px; font-weight: bold;
+    cursor: pointer; text-align: center; white-space: nowrap;
+  }
+  .android-folder-btn { background: #1f4e3d; color: #7ef7c8; border-color: #369673; }
+  .mini-btn:active, .android-folder-btn:active { transform: scale(0.96); }
+
+  .canvas-viewport {
+    flex: 1; min-height: 0; position: relative; background: #080605;
+    border-radius: 6px; overflow: hidden; display: flex; justify-content: center;
+    align-items: center; border: 1.5px solid #2c221e;
+  }
+  canvas { width: 100%; height: 100%; object-fit: contain; display: block; cursor: pointer; }
+
+  #android-loader-modal {
+    display: none; position: absolute; inset: 12px; background: rgba(18, 14, 22, 0.96);
+    border: 2px solid #f5b041; border-radius: 12px; padding: 16px; flex-direction: column;
+    justify-content: center; align-items: center; gap: 12px; text-align: center; z-index: 30;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+  }
+  .modal-title { font-size: 16px; font-weight: 900; color: #ffca6b; }
+  .modal-desc { font-size: 12px; color: #d8cfe0; line-height: 1.5; }
+  .modal-big-btn {
+    background: linear-gradient(180deg, #27ae60, #1e8449); color: #fff;
+    border: 2px solid #7ef7c8; border-radius: 10px; padding: 10px 18px;
+    font-size: 14px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+
+  .gb-brand { display: flex; justify-content: space-between; align-items: center; padding: 0 6px; font-size: 11px; font-weight: 900; letter-spacing: 1.5px; color: #8c849e; }
+  .power-led { display: inline-block; width: 8px; height: 8px; background: #ff3b2f; border-radius: 50%; box-shadow: 0 0 8px #ff3b2f; margin-right: 5px; }
+
+  .gb-controls {
+    flex: 0.72; min-height: 210px; max-height: 270px; background: linear-gradient(180deg, #23202c 0%, #191620 100%);
+    border-radius: 16px 16px 36px 16px; border: 2px solid #342f42; padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+
+  .dpad-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 176px;
+    height: 176px;
+    position: relative;
+  }
+  .joystick-base {
+    position: relative;
+    width: 146px;
+    height: 146px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #1c1924 0%, #100e14 70%, #09080c 100%);
+    border: 3px solid #3c364a;
+    box-shadow: inset 0 6px 16px rgba(0,0,0,0.85), 0 4px 10px rgba(0,0,0,0.6);
+    touch-action: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  /* 搖桿底座十字刻度裝飾線 */
+  .joystick-base::before, .joystick-base::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+  }
+  .joystick-base::before { width: 76%; height: 2px; }
+  .joystick-base::after { width: 2px; height: 76%; }
+
+  .joystick-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 64px;
+    height: 64px;
+    margin-top: -32px;
+    margin-left: -32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #524c63 0%, #2b2836 62%, #141218 100%);
+    border: 2.5px solid #6c6482;
+    box-shadow: 0 8px 14px rgba(0,0,0,0.75), inset 0 2px 4px rgba(255,255,255,0.22);
+    transform: translate(0px, 0px);
+    transition: transform 0.08s ease-out;
+    pointer-events: none;
+  }
+  .joystick-knob.active {
+    transition: none;
+    border-color: #f5b041;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.8), 0 0 12px rgba(245, 176, 65, 0.35), inset 0 2px 4px rgba(255,255,255,0.3);
+  }
+  .dpad-hint { font-size: 11px; color: #9e96b0; font-weight: bold; }
+
+  /* 左上角模式切換實體按鈕 */
+  .dpad-toggle-btn {
+    position: absolute;
+    top: -40px;
+    left: -6px;
+    background: linear-gradient(180deg, #3c354b 0%, #221e2b 100%);
+    color: #f5b041;
+    border: 2px solid #6c6482;
+    border-radius: 8px;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    z-index: 15;
+    box-shadow: 0 3px 0 #0d0c12, 0 4px 8px rgba(0,0,0,0.75);
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .dpad-toggle-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #0d0c12, 0 2px 4px rgba(0,0,0,0.75);
+  }
+
+  /* 九宮格八向實體方向鍵容器 (預設隱藏) */
+  .dpad-8way-grid {
+    display: none;
+    width: 146px;
+    height: 146px;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 5px;
+    padding: 4px;
+    background: #121017;
+    border-radius: 16px;
+    border: 2.5px solid #3c364a;
+    box-shadow: inset 0 4px 12px rgba(0,0,0,0.85), 0 4px 10px rgba(0,0,0,0.6);
+    touch-action: none;
+  }
+  .dpad-btn {
+    background: linear-gradient(180deg, #3c384a 0%, #24212e 65%, #16141d 100%);
+    border: 2px solid #57506b;
+    border-radius: 8px;
+    box-shadow: 0 4px 0 #09080c, 0 5px 8px rgba(0,0,0,0.7), inset 0 1px 2px rgba(255,255,255,0.22);
+    color: #f5b041;
+    font-size: 16px;
+    font-weight: 900;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    touch-action: none;
+    transition: transform 0.04s, box-shadow 0.04s;
+  }
+  .dpad-btn.diag {
+    background: linear-gradient(180deg, #302c3d 0%, #1c1926 65%, #110f17 100%);
+    border-color: #464057;
+    color: #bfa57a;
+    font-size: 14px;
+  }
+  .dpad-btn.pressed, .dpad-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #09080c, 0 2px 4px rgba(0,0,0,0.7), inset 0 1px 2px rgba(255,255,255,0.15);
+    border-color: #f5b041;
+    color: #ffffff;
+    filter: brightness(1.25);
+  }
+  .dpad-center-empty {
+    pointer-events: none;
+    border-radius: 6px;
+    background: radial-gradient(circle, rgba(0,0,0,0.45) 0%, transparent 75%);
+  }
+
+  /* Xbox 菱形四鍵佈局 */
+
+  .xbox-pad-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 176px;
+    height: 176px;
+    position: relative; /* 👈 新增這一行 */
+  }
+
+  /* 👇 新增開始：HELP 按鈕樣式 👇 */
+  .help-btn {
+    position: absolute;
+    top: -40px;
+    right: 0px;
+    background: #194e63;
+    color: #7edaf7;
+    border: 2px solid #2874a6;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    z-index: 15;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.6);
+    transition: transform 0.05s;
+  }
+  .help-btn:active { transform: scale(0.92); }
+  /* 👆 新增結束 👆 */
+
+  .xbox-diamond {
+
+    position: relative;
+    width: 164px;
+    height: 164px;
+  }
+  .xbox-btn {
+    position: absolute;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #383542 0%, #191720 65%, #0d0c12 100%);
+    border: 2.5px solid #4a4559;
+    box-shadow: 0 6px 0 #07060a, 0 8px 14px rgba(0,0,0,0.75), inset 0 2px 3px rgba(255,255,255,0.22);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: "Segoe UI", "Arial Black", sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .xbox-btn.pressed, .xbox-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #07060a, 0 3px 6px rgba(0,0,0,0.75), inset 0 1px 2px rgba(255,255,255,0.15);
+    filter: brightness(1.2);
+  }
+  .xbox-btn.btn-y { top: 0; left: 54px; color: #f1c40f; border-color: #b7950b; text-shadow: 0 0 10px rgba(241, 196, 15, 0.45); }
+  .xbox-btn.btn-x { top: 54px; left: 0; color: #3498db; border-color: #2874a6; text-shadow: 0 0 10px rgba(52, 152, 219, 0.45); }
+  .xbox-btn.btn-b { top: 54px; right: 0; color: #e74c3c; border-color: #b03a2e; text-shadow: 0 0 10px rgba(231, 76, 60, 0.45); }
+  .xbox-btn.btn-a { bottom: 0; left: 54px; color: #2ecc71; border-color: #239b56; text-shadow: 0 0 10px rgba(46, 204, 113, 0.45); }
+  /* =========================================
+     自動偵測橫式 (Landscape)：左十字鍵、中間遊戲視窗、右 XYAB
+     ========================================= */
+  @media screen and (orientation: landscape) {
+    body {
+      background: #080605;
+    }
+    .gb-console {
+      max-width: 100vw;
+      width: 100vw;
+      height: 100dvh;
+      max-height: 100dvh;
+      border-radius: 0;
+      border: none;
+      padding: 8px 18px;
+      gap: 16px;
+      flex-direction: row; /* 改為水平左中右排列 */
+      align-items: center;
+      background: linear-gradient(165deg, #1d1a24 0%, #14121a 100%);
+    }
+    .gb-controls {
+      display: contents; /* 讓內部的十字鍵與 XYAB 脫離外框，直接參與左中右排版 */
+    }
+    .dpad-container {
+      order: 1; /* 左邊：十字鍵 */
+      align-self: center;
+      flex-shrink: 0;
+    }
+    .gb-screen-bezel {
+      order: 2; /* 中間：遊戲視窗 */
+      flex: 1;
+      height: 100%;
+      max-height: 100%;
+      margin: 0;
+      border-radius: 14px;
+    }
+    .xbox-pad-container {
+      order: 3; /* 右邊：XYAB */
+      align-self: center;
+      flex-shrink: 0;
+    }
+    .dpad-hint, .gb-brand {
+      display: none; /* 橫向時隱藏提示字與電池燈號，把空間留給遊戲畫面 */
+    }
+  }
+
+  /* 手機橫放時高度較矮，自動微縮兩側按鍵與邊距讓畫面最大化 */
+  @media screen and (orientation: landscape) and (max-height: 480px) {
+    .gb-console {
+      padding: 4px 10px;
+      gap: 8px;
+    }
+    .gb-screen-bezel {
+      border-width: 2px;
+      padding: 4px;
+      border-radius: 10px;
+    }
+    .dpad-container, .xbox-pad-container {
+      transform: scale(0.88);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="gb-console">
+  <div class="gb-screen-bezel">
+    <div class="gb-hud">
+      <div class="hud-top-row">
+        <span id="hud-status-text">正在自動偵測遊戲資源...</span>
+        <span id="hud-char-badge">讀取中</span>
+      </div>
+      <div class="bars-row">
+        <div class="bar-wrap"><span>HP</span><div class="bar-bg"><div id="hp-bar"></div></div><span id="hp-val">100%</span></div>
+        <div class="bar-wrap"><span id="heat-lbl">熱量</span><div class="bar-bg"><div id="heat-bar"></div></div><span id="heat-val">0%</span></div>
+      </div>
+      <div class="debug-row">
+        <label class="android-folder-btn">📂 選資料夾<input type="file" id="android-dir-input" webkitdirectory directory multiple hidden></label>
+        <button class="mini-btn" onclick="returnToMenu()">🏠 選單</button>
+        <button class="mini-btn" id="btn-cam" onclick="toggleCameraView()">🎥 跟隨</button>
+        <button class="mini-btn" id="btn-debug-col" onclick="toggleCollisionDebug()">📐 碰撞:關</button>
+        <button class="mini-btn" onclick="resetStage()">🔄 重來</button>
+        <button class="mini-btn" id="btn-fullscreen" onclick="toggleFullScreen()">⛶ 全螢幕</button>
+      </div>
+    </div>
+
+    <div class="canvas-viewport">
+      <div id="android-loader-modal">
+        <div class="modal-title">📂 手機本機資料夾授權讀取</div>
+        <div class="modal-desc" id="android-modal-desc">
+          偵測到目前為手機離線環境（無法直接自動存取周邊目錄）。<br><br>
+          請點擊下方按鈕，選擇你的<b>「遊戲總資料夾」</b>（內含 character 與 stage），即可載入所有關卡與角色！
+        </div>
+        <label class="modal-big-btn">📂 點此選擇遊戲總資料夾<input type="file" id="android-modal-input" webkitdirectory directory multiple hidden></label>
+      </div>
+      <canvas id="gameCanvas" width="1024" height="720"></canvas>
+    </div>
+
+    <div class="gb-brand">
+      <div><span class="power-led"></span>BATTERY</div>
+      <div id="gb-footer-title">MODULAR PLUGIN & XBOX LAYOUT READY</div>
+    </div>
+  </div>
+
+  <div class="gb-controls">
+    <div class="dpad-container">
+      <button type="button" class="dpad-toggle-btn" id="btn-toggle-dpad">➕ 八向鍵</button>
+      <div class="joystick-base" id="joystick-base">
+        <div class="joystick-knob" id="joystick-knob"></div>
+      </div>
+      <div class="dpad-8way-grid" id="dpad-8way-grid">
+        <button type="button" class="dpad-btn diag" id="pad-up-left" data-dirs="up,left">↖</button>
+        <button type="button" class="dpad-btn" id="pad-up" data-dirs="up">▲</button>
+        <button type="button" class="dpad-btn diag" id="pad-up-right" data-dirs="up,right">↗</button>
+        <button type="button" class="dpad-btn" id="pad-left" data-dirs="left">◀</button>
+        <div class="dpad-center-empty"></div>
+        <button type="button" class="dpad-btn" id="pad-right" data-dirs="right">▶</button>
+        <button type="button" class="dpad-btn diag" id="pad-down-left" data-dirs="down,left">↙</button>
+        <button type="button" class="dpad-btn" id="pad-down" data-dirs="down">▼</button>
+        <button type="button" class="dpad-btn diag" id="pad-down-right" data-dirs="down,right">↘</button>
+      </div>
+      <div class="dpad-hint">🕹️ 搖桿移動/爬梯/進門 ｜ B 爬行 ｜ A 跳躍/站立</div>
+    </div>
+
+
+    <div class="xbox-pad-container">
+      <!-- 👇 新增開始：HELP 按鈕 👇 -->
+      <button type="button" class="help-btn" id="btn-help">❔ HELP</button>
+      <!-- 👆 新增結束 👆 -->
+      <div class="xbox-diamond">
+        <button class="xbox-btn btn-y" id="btn-y">Y</button>
+        <button class="xbox-btn btn-x" id="btn-x">X</button>
+        <button class="xbox-btn btn-b" id="btn-b">B</button>
+        <button class="xbox-btn btn-a" id="btn-a">A</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+window.GAME_MECHANISMS_REGISTRY = {};
+window.registerMechanismType = function(typeName, definition) { window.GAME_MECHANISMS_REGISTRY[typeName] = definition; };
+window.GAME_ITEMS_REGISTRY = {};
+window.registerItemType = function(typeName, definition) { window.GAME_ITEMS_REGISTRY[typeName] = definition; };
+
+window.GAME_ACTIONS_REGISTRY = {};
+window.registerAction = function(actionId, definition) {
+  if (!actionId || !definition) return;
+  window.GAME_ACTIONS_REGISTRY[actionId] = definition;
+};
+window.registerCustomAction = window.registerAction;
+
+window.registerMechanismType("foreground_mask", {
+  solid: false,
+  isForeground: true,
+  init: function(mech) { mech.playerInside = false; },
+  update: function(mech, player) {
+    const px = player.x;
+    const py = player.y - 30;
+    mech.playerInside = (
+      px >= mech.x - 15 && px <= mech.x + mech.width + 15 &&
+      py >= mech.y && py <= mech.y + mech.height + 20
+    );
+  },
+  draw: function(ctx, mech, customImg) {
+    ctx.save();
+    ctx.globalAlpha = mech.playerInside ? (mech.opacityWhenInside ?? 0.88) : 1.0;
+    if (customImg && customImg.complete && customImg.naturalWidth > 0) {
+      window.drawEntityTexture(ctx, mech, customImg);
+    } else if (window.CURRENT_STAGE_BG && window.CURRENT_STAGE_BG.complete && window.CURRENT_STAGE_BG.naturalWidth > 0) {
+      const bg = window.CURRENT_STAGE_BG, scaleX = bg.naturalWidth / (window.CURRENT_WORLD_W || 2560), scaleY = bg.naturalHeight / (window.CURRENT_WORLD_H || 620);
+      ctx.drawImage(bg, mech.x * scaleX, mech.y * scaleY, mech.width * scaleX, mech.height * scaleY, mech.x, mech.y, mech.width, mech.height);
+    } else {
+      const grad = ctx.createLinearGradient(0, mech.y, 0, mech.y + mech.height);
+      grad.addColorStop(0, '#576574'); grad.addColorStop(0.5, '#8395a7'); grad.addColorStop(1, '#222f3e');
+      ctx.fillStyle = grad; ctx.fillRect(mech.x, mech.y, mech.width, mech.height);
+    }
+    ctx.restore();
+  }
+});
+
+let rawCollisionData = null;
+let activeMechanisms = [];
+let activeItems = [];
+let nearestInteractableItem = null;
+
+// 👇 修改開始：加入 STAGE_HELP 狀態與頁碼變數 👇
+const STATE = { TITLE_LOADING: 'TITLE_LOADING', CONTROLS_GUIDE: 'CONTROLS_GUIDE', CHAR_SELECT: 'CHAR_SELECT', STAGE_SELECT: 'STAGE_SELECT', STAGE_LOADING: 'STAGE_LOADING', PLAYING: 'PLAYING', STAGE_HELP: 'STAGE_HELP' };
+let gameState = STATE.TITLE_LOADING;
+let helpCurrentPage = 1;
+// 👆 修改結束 👆
+
+// 封面底圖與真實載入進度變數
+
+let mainCoverImg = new Image();
+let isMainCoverReady = false;
+let gameBootProgress = 0;       // 真實讀取進度 (0.0 ~ 1.0)
+let gameBootVisualProg = 0;     // 視覺平滑進度 (0.0 ~ 1.0)
+let gameBootStepText = '正在尋找遊戲封面與資源...';
+let isGameBootComplete = false; // 是否已全部載入完畢可按 A 進入
+let loadedCharacters = [], loadedStages = [];
+let selectedCharIdx = 0, selectedStageIdx = 0, charScrollVisualIdx = 0, stageScrollVisualIdx = 0, charSpinAngle = 0;
+let loadingMessage = '正在自動偵測角色與關卡資料夾...', stageLoadWarning = '', isEnteringStage = false, showDebugCollision = false;
+
+let stageLoadProgress = 0, stageLoadVisualProg = 0, stageLoadStepText = '準備載入關卡資源...', stageLoadTitleText = 'STAGE 01';
+let globalFileList = [];
+let WORLD_W = 2048, WORLD_H = 1004;
+let GROUND_POLYLINES = [], LADDERS = [], SOLID_WALLS = [], FRICTION_ZONES = [];
+let SPAWN_POINT = { x: 1930, y: 792, dir: -1 };
+let GOAL_CONDITION = { xMax: 245, yMax: 575 };
+let rawBgImg = new Image(), isBgReady = false, followCameraMode = true;
+
+const PHYS_STAND_H = 132, PHYS_CRAWL_H = 64, PHYS_HALF_W = 16;
+function getStanceHeight(isCrawl) { return isCrawl ? PHYS_CRAWL_H : PHYS_STAND_H; }
+
+const player = {
+  x: 1930, y: 792, vx: 0, vy: 0, dir: -1,
+  grounded: true, crawling: false, climbing: false,
+  raisingHands: false, ledgeClimbing: false, ledgeForceCrawl: false,
+  ledgeClimbingDown: false,
+  fallStartY: null,
+  deathCause: 'fire',
+  stanceT: 0, 
+  landSquatTimer: 0,
+  turning: false,
+  turnTimer: 0,
+  turnDuration: 0.4,
+  turnFromDir: -1,
+  turnToDir: -1,
+
+  holdingItem: null, customArmPose: null, customArmTimer: 0,
+  ledgeStartX: 0, ledgeStartY: 0, ledgeGrabX: 0, ledgeTargetX: 0, ledgeTargetY: 0, ledgeProgress: 0,
+  activeCustomAction: null, customActionTimer: 0,
+  // 通用動作外掛控制鉤子 (Action Plugin Hooks)
+  speedMultiplier: 1.0,
+  overrideVx: null,
+  overrideVy: null,
+  customAnimSpeed: null,
+  lockDefaultMove: false,
+  customHitbox: null,
+  onFire: false, slapping: false, hp: 100, heat: 0, maxHeat: 100,
+  slapProgress: 0, animT: 0, won: false, dying: false, deathTimer: 0, dead: false, scraping: false
+};
+
+function isStageNameLocked(rawName) { return /^(\/|_|!|lock_|locked_|鎖)/i.test(String(rawName || '').trim()); }
+function cleanStageDisplayName(rawName) { return String(rawName || '').trim().replace(/^(\/|_|!|lock_|locked_|鎖)+/i, ''); }
+function findNextUnlockedStageIndex(fromIdx) { for (let i = fromIdx + 1; i < loadedStages.length; i++) { if (!loadedStages[i].locked) return i; } return -1; }
+function findFirstUnlockedStageIndex() { for (let i = 0; i < loadedStages.length; i++) { if (!loadedStages[i].locked) return i; } return 0; }
+
+const DEFAULT_CHAR_ORDER = { peter: 1, rose: 2, bb: 3 };
+function getCharacterSortOrder(charObj) {
+  if (charObj && typeof charObj.order === 'number') return charObj.order;
+  const folderKey = String(charObj?.folder || '').toLowerCase(); const nameKey = String(charObj?.name || '').toLowerCase();
+  if (DEFAULT_CHAR_ORDER[folderKey] !== undefined) return DEFAULT_CHAR_ORDER[folderKey];
+  if (DEFAULT_CHAR_ORDER[nameKey] !== undefined) return DEFAULT_CHAR_ORDER[nameKey];
+  return 99;
+}
+function sortLoadedCharacters() { loadedCharacters.sort((a, b) => getCharacterSortOrder(a) - getCharacterSortOrder(b) || String(a.folder).localeCompare(String(b.folder))); }
+
+function ingestCurrentActionData(fallbackId) { if (window.CURRENT_ACTION_DATA) { const act = window.CURRENT_ACTION_DATA; const id = act.id || act.name || fallbackId; window.registerAction(id, act); window.CURRENT_ACTION_DATA = null; } }
+function loadExternalScript(srcPath) { return new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = srcPath; s.onload = () => { s.remove(); resolve(true); }; s.onerror = () => { s.remove(); reject(new Error(`無法讀取: ${srcPath}`)); }; document.head.appendChild(s); }); }
+function loadVirtualScript(file, fileLabel) { return new Promise((resolve) => { const url = URL.createObjectURL(file); const s = document.createElement('script'); s.src = url; s.onload = () => { s.remove(); URL.revokeObjectURL(url); resolve(true); }; s.onerror = () => { s.remove(); URL.revokeObjectURL(url); resolve(false); }; document.head.appendChild(s); }); }
+function normalizeAndroidPath(rawPath) { let decoded = rawPath || ''; try { decoded = decodeURIComponent(decoded); } catch (_) {} return decoded.replace(/\\/g, '/').replace(/^\/+/, ''); }
+function findVirtualFile(relPath) {
+  if (globalFileList.length === 0) return null;
+  const target = normalizeAndroidPath(relPath).toLowerCase();
+  let match = globalFileList.find(item => item.path === target); if (match) return match.file;
+  match = globalFileList.find(item => item.path.endsWith('/' + target)); if (match) return match.file; return null;
+}
+function loadSmartImage(imgElement, basePathWithoutExt, onSuccess, fallbackBase = null) {
+  return new Promise((resolve) => {
+    const normOrig = normalizeAndroidPath(basePathWithoutExt), targetBase = normOrig.replace(/\.[^/.]+$/, ''), exts = ['.png', '.jpg', '.jpeg', '.webp', '.PNG', '.JPG'], tryList = [];
+    if (/\.(png|jpg|jpeg|webp)$/i.test(normOrig)) tryList.push(normOrig);
+    for (const ext of exts) { if (!tryList.includes(targetBase + ext)) tryList.push(targetBase + ext); }
+    if (fallbackBase) { const fbOrig = normalizeAndroidPath(fallbackBase), fbBase = fbOrig.replace(/\.[^/.]+$/, ''); if (/\.(png|jpg|jpeg|webp)$/i.test(fbOrig) && !tryList.includes(fbOrig)) tryList.push(fbOrig); for (const ext of exts) { if (!tryList.includes(fbBase + ext)) tryList.push(fbBase + ext); } }
+    if (globalFileList.length > 0) { for (const cand of tryList) { const f = findVirtualFile(cand); if (f) { imgElement.onload = () => { imgElement._loaded = true; if (onSuccess) onSuccess(); resolve(true); }; imgElement.onerror = () => resolve(false); imgElement.src = URL.createObjectURL(f); return; } } resolve(false); return; }
+    let tryIdx = 0; imgElement.onload = () => { imgElement._loaded = true; if (onSuccess) onSuccess(); resolve(true); }; imgElement.onerror = () => { tryIdx++; if (tryIdx < tryList.length) imgElement.src = tryList[tryIdx]; else resolve(false); }; imgElement.src = tryList[0];
+  });
+}
+
+window.drawEntityTexture = function(ctx, entity, img) {
+  if (!img || !img.complete || img.naturalWidth === 0) return false;
+  if (entity.crop) ctx.drawImage(img, entity.crop.sx, entity.crop.sy, entity.crop.sw, entity.crop.sh, entity.x, entity.y, entity.width, entity.height);
+  else ctx.drawImage(img, entity.x, entity.y, entity.width, entity.height);
+  return true;
+};
+
+// 通用動作外掛載入器（無硬編碼清單，支援由資料夾掃描、game_config.js、角色設定或關卡設定動態載入）
+async function ensureActionScriptLoaded(actionName) {
+  const cleanName = String(actionName || '').replace(/\.js$/i, '').trim();
+  if (!cleanName || window.GAME_ACTIONS_REGISTRY[cleanName]) return true;
+  if (globalFileList.length > 0) {
+    const f = findVirtualFile(`action/${cleanName}.js`) || findVirtualFile(`${cleanName}.js`);
+    if (f) {
+      window.CURRENT_ACTION_DATA = null;
+      const ok = await loadVirtualScript(f, `action/${cleanName}.js`);
+      ingestCurrentActionData(cleanName);
+      return ok;
+    }
+    return false;
+  }
+  try {
+    window.CURRENT_ACTION_DATA = null;
+    await loadExternalScript(`action/${cleanName}.js`);
+    ingestCurrentActionData(cleanName);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function autoProbeServerActions(reg) {
+  if (globalFileList.length > 0) return;
+  // 嘗試載入選用的 action/index.js 入口檔（若有的話），以及 game_config.js 中宣告的 actions
+  try { window.CURRENT_ACTION_DATA = null; await loadExternalScript('action/index.js'); ingestCurrentActionData('index'); } catch (_) {}
+  const declaredActions = Array.isArray(reg?.actions) ? reg.actions : [];
+  for (const rawName of declaredActions) {
+    await ensureActionScriptLoaded(rawName);
+  }
+}
+
+// 優先載入 image/main.png 並讓畫面渲染出來
+async function preloadMainCoverFirst() {
+  isMainCoverReady = false;
+  mainCoverImg = new Image();
+  await loadSmartImage(mainCoverImg, 'image/main', () => { isMainCoverReady = true; }, 'main');
+  // 讓出一個 frame 給瀏覽器，確保封面圖立刻畫在螢幕上，才開始後續繁重的讀檔
+  await new Promise(r => requestAnimationFrame(r));
+}
+
+async function loadFromAndroidFolderInput(fileList) {
+  if (!fileList || fileList.length === 0) return;
+
+  // 1. 立刻關閉彈窗、切到封面載入畫面
+  document.getElementById('android-loader-modal').style.display = 'none';
+  gameState = STATE.TITLE_LOADING;
+  isGameBootComplete = false;
+  gameBootProgress = 0.02;
+  gameBootVisualProg = 0.02;
+  gameBootStepText = '正在載入遊戲封面 (image/main.png)...';
+  updateHudStatus();
+
+  // 2. 先建立檔案索引，這樣才能第一時間從資料夾裡找出 image/main.png
+  globalFileList = [];
+  const autoDetectedChars = new Set(), autoDetectedStages = new Set(), allJsFiles = [];
+  for (const file of fileList) {
+    const rawRel = file.webkitRelativePath || file.name, normPath = normalizeAndroidPath(rawRel), lowerPath = normPath.toLowerCase();
+    globalFileList.push({ path: lowerPath, file: file, rawRel: normPath });
+    const parts = normPath.split('/'), lowerParts = lowerPath.split('/'), fileName = lowerParts[lowerParts.length - 1], parentFolderOrig = parts.length > 1 ? parts[parts.length - 2] : '', parentFolderLower = lowerParts.length > 1 ? lowerParts[lowerParts.length - 2] : '';
+    if (fileName === 'config.js' && lowerParts.length >= 3 && lowerParts[lowerParts.length - 3] === 'character') autoDetectedChars.add(parentFolderOrig);
+    if (/^(bg\.(jpg|png|jpeg|webp)|cover\.(jpg|png|jpeg|webp)|collision\.(js|json))$/.test(fileName)) {
+      if (parentFolderLower && parentFolderLower !== 'stage' && parentFolderLower !== 'character' && parentFolderLower !== 'action' && parentFolderLower !== 'image') autoDetectedStages.add(parentFolderOrig);
+    }
+    if (fileName.endsWith('.js')) allJsFiles.push({ file, lowerPath, rawRel: normPath, parentFolder: parentFolderOrig, parentFolderLower });
+  }
+
+  // 3. 第一件事：先把 image/main.png 找出來並顯示在畫面上！
+  await preloadMainCoverFirst();
+  gameBootProgress = 0.12;
+
+  // 計算總工作量，用來推進真實進度條
+  const totalSteps = Math.max(1, allJsFiles.length + autoDetectedChars.size + autoDetectedStages.size);
+  let doneSteps = 0;
+  const stepProgress = (msg) => {
+    doneSteps++;
+    gameBootStepText = msg;
+    gameBootProgress = Math.min(0.98, 0.12 + (doneSteps / totalSteps) * 0.86);
+    updateHudStatus();
+  };
+
+  // 4. 依序載入所有 JS 腳本（動作、機關、道具、角色設定），並即時更新進度條
+  const directLoadedCharMap = new Map();
+  for (const item of allJsFiles) {
+    try {
+      const code = await item.file.text();
+      if (item.parentFolderLower === 'action' || item.lowerPath.includes('/action/') || code.includes('registerAction') || code.includes('registerCustomAction') || code.includes('CURRENT_ACTION_DATA')) {
+        window.CURRENT_ACTION_DATA = null;
+        await loadVirtualScript(item.file, item.rawRel);
+        ingestCurrentActionData(item.file.name.replace(/\.js$/i, ''));
+        stepProgress(`載入動作模組: ${item.file.name}`);
+        continue;
+      }
+      if (item.lowerPath.includes('/mechanisms/') || code.includes('registerMechanismType') || item.lowerPath.includes('/items/') || code.includes('registerItemType')) {
+        await loadVirtualScript(item.file, item.rawRel);
+        stepProgress(`載入機關與道具: ${item.file.name}`);
+        continue;
+      }
+      if (code.includes('CURRENT_CHAR_DATA')) {
+        autoDetectedChars.add(item.parentFolder);
+        window.CURRENT_CHAR_DATA = null;
+        await loadVirtualScript(item.file, item.rawRel);
+        if (window.CURRENT_CHAR_DATA) directLoadedCharMap.set(item.parentFolder, { folder: item.parentFolder, ...window.CURRENT_CHAR_DATA });
+        stepProgress(`載入角色設定: ${item.parentFolder}`);
+        continue;
+      }
+      if (code.includes('STAGE_COLLISION') && item.parentFolderLower !== 'stage') {
+        autoDetectedStages.add(item.parentFolder);
+      }
+      stepProgress(`解析腳本: ${item.file.name}`);
+    } catch (e) {
+      stepProgress(`略過腳本: ${item.file.name}`);
+    }
+  }
+
+  // 5. 整理角色資料
+  loadedCharacters = [];
+  for (const charFolder of autoDetectedChars) {
+    if (directLoadedCharMap.has(charFolder)) {
+      loadedCharacters.push(directLoadedCharMap.get(charFolder));
+      stepProgress(`就緒角色: ${charFolder}`);
+      continue;
+    }
+    const f = findVirtualFile(`character/${charFolder}/config.js`) || findVirtualFile(`${charFolder}/config.js`);
+    if (f) {
+      window.CURRENT_CHAR_DATA = null;
+      await loadVirtualScript(f, `${charFolder}/config.js`);
+      if (window.CURRENT_CHAR_DATA) loadedCharacters.push({ folder: charFolder, ...window.CURRENT_CHAR_DATA });
+    }
+    stepProgress(`就緒角色: ${charFolder}`);
+  }
+  sortLoadedCharacters();
+
+  // 6. 整理並預載各關卡封面縮圖
+  loadedStages = [];
+  for (const folder of autoDetectedStages) {
+    const locked = isStageNameLocked(folder), displayFolder = cleanStageDisplayName(folder), m = displayFolder.match(/(\d+)/), numStr = m ? m[1].padStart(2, '0') : displayFolder, numVal = m ? parseInt(m[1], 10) : 99, stagePath = `stage/${folder}`, coverImg = new Image(), stageObj = { folder, displayFolder, locked, path: stagePath, stageNumStr: numStr, stageNum: numVal, coverImg, coverLoaded: false };
+    if (!locked) {
+      await loadSmartImage(coverImg, `${stagePath}/cover`, () => { stageObj.coverLoaded = true; }, `${stagePath}/bg`);
+    }
+    loadedStages.push(stageObj);
+    stepProgress(`就緒關卡: ${displayFolder}`);
+  }
+  loadedStages.sort((a, b) => a.stageNum - b.stageNum || a.displayFolder.localeCompare(b.displayFolder));
+
+  // 7. 檢查載入結果：完成時停在 100% 等待玩家按 A
+  selectedCharIdx = charScrollVisualIdx = 0;
+  selectedStageIdx = stageScrollVisualIdx = findFirstUnlockedStageIndex();
+  if (loadedCharacters.length > 0 && loadedStages.length > 0) {
+    loadingMessage = '';
+    gameBootProgress = 1.0;
+    gameBootVisualProg = 1.0;
+    gameBootStepText = '所有遊戲檔案載入完畢！';
+    isGameBootComplete = true;
+    updateHudStatus();
+  } else {
+    loadingMessage = `⚠️ 未找到角色或關卡。`;
+    document.getElementById('android-modal-desc').innerHTML = `<span style="color:#ff7a6b;">${loadingMessage}</span><br>請確認你選取的是包含 <b>character</b> 與 <b>stage</b> 的<b>最外層資料夾</b>！`;
+    document.getElementById('android-loader-modal').style.display = 'flex';
+  }
+}
+document.getElementById('android-dir-input').addEventListener('change', e => loadFromAndroidFolderInput(e.target.files));
+document.getElementById('android-modal-input').addEventListener('change', e => loadFromAndroidFolderInput(e.target.files));
+
+async function autoDetectAndStartGame() {
+  document.getElementById('android-loader-modal').style.display = 'none';
+  gameState = STATE.TITLE_LOADING;
+  isGameBootComplete = false;
+  gameBootProgress = 0.02;
+  gameBootVisualProg = 0.02;
+  gameBootStepText = '正在尋找並載入遊戲封面 (image/main.png)...';
+  updateHudStatus();
+
+  // 1. 第一件事：先載入並顯示 image/main.png
+  await preloadMainCoverFirst();
+  gameBootProgress = 0.12;
+  gameBootStepText = '正在讀取遊戲設定檔 (game_config.js)...';
+
+  try { await loadExternalScript('game_config.js'); } catch (_) {}
+  const reg = window.GAME_REGISTRY || window.game_registry || {};
+  gameBootProgress = 0.20;
+  gameBootStepText = '正在載入動作外掛模組...';
+  await autoProbeServerActions(reg);
+
+  const charCandidates = Array.from(new Set(['peter', 'rose', 'BB', 'bb', 'Peter', 'Rose', ...(Array.isArray(reg.characters) ? reg.characters : []), 'char01', 'char02', 'char03', 'char04', 'char05', 'default']));
+  const stageCandidatesSet = new Set(Array.isArray(reg.stages) ? reg.stages : []);
+  for (let i = 1; i <= 20; i++) {
+    const sNum = String(i).padStart(2, '0');
+    stageCandidatesSet.add(`stage${sNum}`);
+    stageCandidatesSet.add(`_stage${sNum}`);
+    stageCandidatesSet.add(`!stage${sNum}`);
+    stageCandidatesSet.add(`lock_stage${sNum}`);
+  }
+  const stageCandidates = Array.from(stageCandidatesSet);
+
+  const totalProbes = Math.max(1, charCandidates.length + stageCandidates.length);
+  let doneProbes = 0;
+  const advanceBoot = (label) => {
+    doneProbes++;
+    if (label) gameBootStepText = label;
+    gameBootProgress = Math.min(0.98, 0.22 + (doneProbes / totalProbes) * 0.76);
+    updateHudStatus();
+  };
+
+  // 2. 偵測並載入角色
+  loadedCharacters = [];
+  const loadedCharNames = new Set();
+  for (const folder of charCandidates) {
+    if (globalFileList.length > 0) return;
+    try {
+      window.CURRENT_CHAR_DATA = null;
+      await loadExternalScript(`character/${folder}/config.js`);
+      if (window.CURRENT_CHAR_DATA) {
+        const charData = window.CURRENT_CHAR_DATA;
+        const uniqueKey = (charData.name || folder).toLowerCase();
+        if (!loadedCharNames.has(uniqueKey)) {
+          loadedCharNames.add(uniqueKey);
+          loadedCharacters.push({ folder, ...charData });
+          if (Array.isArray(charData.actions)) {
+            for (const actName of charData.actions) await ensureActionScriptLoaded(actName);
+          }
+        }
+        advanceBoot(`已載入角色: ${charData.name || folder}`);
+        continue;
+      }
+    } catch (_) {}
+    advanceBoot();
+  }
+  sortLoadedCharacters();
+
+  // 3. 偵測並載入關卡
+  loadedStages = [];
+  const seenStageNums = new Set();
+  for (const rawEntry of stageCandidates) {
+    if (globalFileList.length > 0) return;
+    const rawStr = String(rawEntry).trim(), explicitSlashLock = rawStr.startsWith('/') || /^stage\/\//i.test(rawStr), folder = rawStr.replace(/^\/+/, '').replace(/^stage\/+|/i, '').trim();
+    if (!folder) { advanceBoot(); continue; }
+    const locked = explicitSlashLock || isStageNameLocked(folder), displayFolder = cleanStageDisplayName(folder), m = displayFolder.match(/(\d+)/), numStr = m ? m[1].padStart(2, '0') : displayFolder, numVal = m ? parseInt(m[1], 10) : 99, uniqueStageKey = `${numVal}_${displayFolder.toLowerCase()}`;
+    if (seenStageNums.has(uniqueStageKey)) { advanceBoot(); continue; }
+
+    if (explicitSlashLock && Array.isArray(reg.stages) && reg.stages.includes(rawEntry)) {
+      seenStageNums.add(uniqueStageKey);
+      loadedStages.push({ folder, displayFolder, locked: true, path: `stage/${displayFolder}`, stageNumStr: numStr, stageNum: numVal, coverImg: new Image(), coverLoaded: false });
+      advanceBoot(`已記錄未開放關卡: ${displayFolder}`);
+      continue;
+    }
+
+    const stagePath = `stage/${folder}`;
+    let foundPath = null;
+    try {
+      window.STAGE_COLLISION = null;
+      await loadExternalScript(`${stagePath}/collision.js`);
+      if (window.STAGE_COLLISION) foundPath = stagePath;
+    } catch (_) {
+      try {
+        window.STAGE_COLLISION = null;
+        await loadExternalScript(`${folder}/collision.js`);
+        if (window.STAGE_COLLISION) foundPath = folder;
+      } catch (_2) {}
+    }
+
+    if (foundPath) {
+      seenStageNums.add(uniqueStageKey);
+      const coverImg = new Image(), stageObj = { folder, displayFolder, locked, path: foundPath, stageNumStr: numStr, stageNum: numVal, coverImg, coverLoaded: false };
+      if (!locked) loadSmartImage(coverImg, `${stagePath}/cover`, () => { stageObj.coverLoaded = true; }, `${stagePath}/bg`);
+      loadedStages.push(stageObj);
+      advanceBoot(`已載入關卡: ${displayFolder}`);
+    } else {
+      advanceBoot();
+    }
+  }
+  loadedStages.sort((a, b) => a.stageNum - b.stageNum || a.displayFolder.localeCompare(b.displayFolder));
+
+  // 4. 全部載入完成，進度條 100%，等待玩家按 A 秒進選角！
+  if (loadedCharacters.length > 0 && loadedStages.length > 0) {
+    document.getElementById('android-loader-modal').style.display = 'none';
+    selectedCharIdx = charScrollVisualIdx = 0;
+    selectedStageIdx = stageScrollVisualIdx = findFirstUnlockedStageIndex();
+    loadingMessage = '';
+    gameBootProgress = 1.0;
+    gameBootVisualProg = 1.0;
+    gameBootStepText = '所有遊戲資源載入完成！';
+    isGameBootComplete = true;
+    updateHudStatus();
+  } else if (globalFileList.length === 0) {
+    loadingMessage = '📂 請選擇遊戲總資料夾';
+    document.getElementById('android-loader-modal').style.display = 'flex';
+  }
+}
+
+async function ensureMechanismScriptLoaded(typeName) {
+  if (globalFileList.length > 0) { const f = findVirtualFile(`mechanisms/${typeName}.js`) || findVirtualFile(`${typeName}.js`); if (f) return await loadVirtualScript(f, `mechanisms/${typeName}.js`); return !!window.GAME_MECHANISMS_REGISTRY[typeName]; }
+  try { await loadExternalScript(`mechanisms/${typeName}.js`); return !!window.GAME_MECHANISMS_REGISTRY[typeName]; } catch(e) { return !!window.GAME_MECHANISMS_REGISTRY[typeName]; }
+}
+async function ensureItemScriptLoaded(typeName) {
+  if (globalFileList.length > 0) { const f = findVirtualFile(`items/${typeName}.js`) || findVirtualFile(`${typeName}.js`); if (f) return await loadVirtualScript(f, `items/${typeName}.js`); return !!window.GAME_ITEMS_REGISTRY[typeName]; }
+  try { await loadExternalScript(`items/${typeName}.js`); return !!window.GAME_ITEMS_REGISTRY[typeName]; } catch(e) { return !!window.GAME_ITEMS_REGISTRY[typeName]; }
+}
+
+let cachedEntityImages = {};
+function instantiateStageEntities(stagePath, cleanFolder, collisionData) {
+  activeMechanisms = []; activeItems = []; window.activeMechanisms = activeMechanisms; window.activeItems = activeItems;
+  if (!collisionData) return;
+  if (Array.isArray(collisionData.mechanisms)) {
+    for (const rawMech of collisionData.mechanisms) {
+      const instance = JSON.parse(JSON.stringify(rawMech));
+      instance.width = instance.width ?? 120; instance.height = instance.height ?? 32; instance.prevX = instance.x; instance.prevY = instance.y; instance.dx = instance.dy = 0;
+      const def = window.GAME_MECHANISMS_REGISTRY[instance.type];
+      if (def && typeof def.init === 'function') def.init(instance);
+      if (instance.texture) {
+        const cacheKey = instance.texture;
+        if (cachedEntityImages[cacheKey]) {
+          instance._img = cachedEntityImages[cacheKey];
+        } else {
+          const img = new Image();
+          loadSmartImage(img, instance.texture, () => {});
+          cachedEntityImages[cacheKey] = img;
+          instance._img = img;
+        }
+      }
+      activeMechanisms.push(instance);
+    }
+  }
+  if (Array.isArray(collisionData.items)) {
+    for (const rawItem of collisionData.items) {
+      const instance = JSON.parse(JSON.stringify(rawItem));
+      instance.width = instance.width ?? 32; instance.height = instance.height ?? 32; instance.collected = false;
+      const def = window.GAME_ITEMS_REGISTRY[instance.type];
+      if (def && typeof def.init === 'function') def.init(instance);
+      if (instance.texture) {
+        const cacheKey = instance.texture;
+        if (cachedEntityImages[cacheKey]) {
+          instance._img = cachedEntityImages[cacheKey];
+        } else {
+          const img = new Image();
+          loadSmartImage(img, instance.texture, () => {});
+          cachedEntityImages[cacheKey] = img;
+          instance._img = img;
+        }
+      }
+      activeItems.push(instance);
+    }
+  }
+}
+
+function drawEntities(targetLayer = 'background') {
+  window.CURRENT_STAGE_BG = rawBgImg; window.CURRENT_WORLD_W = WORLD_W; window.CURRENT_WORLD_H = WORLD_H;
+  for (const m of activeMechanisms) {
+    if (m.hidden) continue;
+    const def = window.GAME_MECHANISMS_REGISTRY[m.type], isFg = (m.layer === 'foreground') || (def && def.isForeground) || (m.type === 'foreground_mask');
+    if (targetLayer === 'foreground' && !isFg) continue; if (targetLayer === 'background' && isFg) continue;
+    if (def && typeof def.draw === 'function') { def.draw(ctx, m, m._img); }
+    else { ctx.save(); if (!window.drawEntityTexture(ctx, m, m._img)) { ctx.fillStyle = '#4a69bd'; ctx.strokeStyle = '#1e3799'; ctx.lineWidth = 2.5; ctx.fillRect(m.x, m.y, m.width, m.height); ctx.strokeRect(m.x, m.y, m.width, m.height); } ctx.restore(); }
+  }
+  if (targetLayer === 'background') {
+    for (const item of activeItems) {
+      if (item.hidden || (item.collected && !item.isHeld && !item.isThrown && !item.alwaysDraw)) continue;
+      const def = window.GAME_ITEMS_REGISTRY[item.type];
+      if (def && typeof def.draw === 'function') { def.draw(ctx, item, item._img); }
+      else if (!item.collected) { ctx.save(); if (!window.drawEntityTexture(ctx, item, item._img)) { ctx.fillStyle = '#0be881'; ctx.strokeStyle = '#05c46b'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(item.x + item.width / 2, item.y + item.height / 2, Math.min(item.width, item.height) / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); } ctx.restore(); }
+    }
+  }
+}
+
+async function loadAndStartStage(stageIdx) {
+  if (isEnteringStage) return; const st = loadedStages[stageIdx]; if (!st || st.locked) return;
+  isEnteringStage = true; stageLoadWarning = ''; cachedEntityImages = {};
+  gameState = STATE.STAGE_LOADING; stageLoadTitleText = `第 ${st.stageNumStr} 關 (${st.displayFolder || st.folder})`; stageLoadProgress = 0.08; stageLoadVisualProg = 0.02; stageLoadStepText = '正在下載關卡碰撞區資料 (collision.js)...'; updateHudStatus();
+  try {
+    window.STAGE_COLLISION = null;
+    if (globalFileList.length > 0) {
+      const colJs = findVirtualFile(`stage/${st.folder}/collision.js`) || findVirtualFile(`${st.folder}/collision.js`);
+      if (colJs) await loadVirtualScript(colJs, `${st.folder}/collision.js`); else { const colJson = findVirtualFile(`stage/${st.folder}/collision.json`) || findVirtualFile(`${st.folder}/collision.json`); if (colJson) { try { const txt = await colJson.text(); window.STAGE_COLLISION = JSON.parse(txt); } catch(e) {} } }
+      if (!window.STAGE_COLLISION) stageLoadWarning = `⚠️ 找不到 ${st.folder} 專屬碰撞檔`;
+    } else { try { await loadExternalScript(`${st.path}/collision.js`); } catch (_) { try { await loadExternalScript(`${st.folder}/collision.js`); } catch (err2) { stageLoadWarning = `⚠️ 無法載入 collision.js`; } } }
+    const col = window.STAGE_COLLISION || {}; rawCollisionData = col; WORLD_W = col.worldWidth || 2048; WORLD_H = col.worldHeight || 1004; GROUND_POLYLINES = (Array.isArray(col.groundPolylines) && col.groundPolylines.length > 0) ? col.groundPolylines : [{ pts: [[0, WORLD_H - 150], [WORLD_W, WORLD_H - 150]] }]; LADDERS = col.ladders || []; SOLID_WALLS = col.solidWalls || []; FRICTION_ZONES = col.frictionZones || []; SPAWN_POINT = col.playerSpawn || { x: WORLD_W - 120, y: WORLD_H - 210, dir: -1 }; GOAL_CONDITION = col.goalArea || { xMax: 245, yMax: 575 };
+    stageLoadProgress = 0.35;
+    const mechList = Array.isArray(col.mechanisms) ? col.mechanisms : [], itemList = Array.isArray(col.items) ? col.items : [], actionList = Array.isArray(col.actions) ? col.actions : [], totalTasks = 1 + mechList.length + itemList.length + actionList.length;
+    let completedTasks = 0; const advanceProgress = (label) => { completedTasks++; stageLoadStepText = label; stageLoadProgress = 0.35 + (completedTasks / totalTasks) * 0.65; };
+    for (const actName of actionList) { if (actName) { stageLoadStepText = `正在載入動作外掛 (${actName})...`; await ensureActionScriptLoaded(actName); } advanceProgress(`已就緒動作: ${actName}`); }
+    for (const m of mechList) {
+      if (m && m.type) {
+        stageLoadStepText = `正在載入機關模組 (${m.type})...`;
+        await ensureMechanismScriptLoaded(m.type);
+      }
+      if (m && m.texture) {
+        stageLoadStepText = `正在下載機關貼圖 (${m.texture})...`;
+        const cacheKey = m.texture;
+        if (!cachedEntityImages[cacheKey]) {
+          const img = new Image();
+          await loadSmartImage(img, m.texture, () => {});
+          cachedEntityImages[cacheKey] = img;
+        }
+      }
+      advanceProgress(`已就緒機關: ${m?.type || 'mechanism'}`);
+    }
+    for (const it of itemList) {
+      if (it && it.type) {
+        stageLoadStepText = `正在載入道具模組 (${it.type})...`;
+        await ensureItemScriptLoaded(it.type);
+      }
+      if (it && it.texture) {
+        stageLoadStepText = `正在下載道具貼圖 (${it.texture})...`;
+        const cacheKey = it.texture;
+        if (!cachedEntityImages[cacheKey]) {
+          const img = new Image();
+          await loadSmartImage(img, it.texture, () => {});
+          cachedEntityImages[cacheKey] = img;
+        }
+      }
+      advanceProgress(`已就緒道具: ${it?.type || 'item'}`);
+    }
+    stageLoadStepText = `正在下載關卡背景圖 (${st.path}/bg)...`; isBgReady = false; rawBgImg = new Image(); const bgOk = await loadSmartImage(rawBgImg, `${st.path}/bg`, () => { isBgReady = true; }, `${st.folder}/bg`); if (bgOk) isBgReady = true; advanceProgress('關卡資源全部載入完成！');
+    instantiateStageEntities(st.path, st.folder, col); stageLoadProgress = 1.0; stageLoadVisualProg = 1.0; await new Promise(r => setTimeout(r, 120)); resetStage(); gameState = STATE.PLAYING; updateHudStatus();
+  } finally { isEnteringStage = false; }
+}
+
+function goToNextStage() {
+  if (loadedStages.length === 0) return; const nextUnlockedIdx = findNextUnlockedStageIndex(selectedStageIdx);
+  if (nextUnlockedIdx !== -1) { selectedStageIdx = nextUnlockedIdx; stageScrollVisualIdx = selectedStageIdx; loadAndStartStage(selectedStageIdx); }
+  else { gameState = STATE.STAGE_SELECT; particles.length = 0; updateHudStatus(); }
+}
+function returnToMenu() {
+  if (isEnteringStage) return;
+  if (gameState === STATE.PLAYING) gameState = STATE.STAGE_SELECT; else gameState = STATE.CHAR_SELECT;
+  particles.length = 0; updateHudStatus();
+}
+function updateHudStatus() {
+  const statusEl = document.getElementById('hud-status-text'), badgeEl = document.getElementById('hud-char-badge'), ch = loadedCharacters[selectedCharIdx], actCount = Object.keys(window.GAME_ACTIONS_REGISTRY).length;
+  if (gameState === STATE.TITLE_LOADING) {
+    statusEl.textContent = isGameBootComplete ? '✅ 載入完畢！按「A」進入遊戲 ｜ 按「X」操作說明' : `⏳ ${gameBootStepText}`;
+    badgeEl.textContent = `${Math.round(gameBootProgress * 100)}%`;
+    return;
+  }
+  if (gameState === STATE.CONTROLS_GUIDE) {
+    statusEl.textContent = '📖 操作功能鍵說明 ｜ 按「B」返回主畫面';
+    badgeEl.textContent = '操作說明';
+    return;
+  }
+  if (gameState === STATE.CHAR_SELECT) { statusEl.textContent = `1. 請選擇角色 (${selectedCharIdx + 1}/${loadedCharacters.length || 0})` + (actCount > 0 ? ` [動作外掛:${actCount}]` : ''); badgeEl.textContent = ch ? ch.name : '讀取中'; }
+  else if (gameState === STATE.STAGE_SELECT) { const st = loadedStages[selectedStageIdx], lockTag = st && st.locked ? ' (🔒未開放)' : ''; statusEl.textContent = `2. 請選擇關卡 (${selectedStageIdx + 1}/${loadedStages.length || 0})${lockTag}`; badgeEl.textContent = `${ch ? ch.name : ''} ｜ 제 ${st ? st.stageNumStr : '--'} 關`; }
+  else if (gameState === STATE.STAGE_LOADING) { statusEl.textContent = `⏳ 正在載入 ${stageLoadTitleText}...`; badgeEl.textContent = `${Math.round(stageLoadProgress * 100)}%`; }
+  else { const st = loadedStages[selectedStageIdx]; statusEl.textContent = stageLoadWarning || `STAGE ${st ? st.stageNumStr : '01'} (⚙️:${activeMechanisms.length} 🎁:${activeItems.length} ⚡:${actCount})`; badgeEl.textContent = ch ? `${ch.name} (速${ch.stats.speed}/燃${ch.stats.ignition}/耐${ch.stats.resist})` : ''; }
+}
+
+const input = { left: false, right: false, up: false, down: false, jump: false, crawl: false, climb: false, slap: false }, prevInput = { left: false, right: false, up: false, down: false, jump: false, crawl: false, climb: false, slap: false };
+function wasJustPressed(key) { return input[key] && !prevInput[key]; }
+function syncPrevInput() { for (const k in input) prevInput[k] = input[k]; }
+function bindButton(elId, keyName) {
+  const el = document.getElementById(elId); if (!el) return;
+  const press = e => { e.preventDefault(); input[keyName] = true; el.classList.add('pressed'); }, release = e => { e.preventDefault(); input[keyName] = false; el.classList.remove('pressed'); };
+  el.addEventListener('mousedown', press); el.addEventListener('mouseup', release); el.addEventListener('mouseleave', release); el.addEventListener('touchstart', press, { passive: false }); el.addEventListener('touchend', release, { passive: false }); el.addEventListener('touchcancel', release, { passive: false });
+}
+// 綁定右側 XYAB 動作鍵
+bindButton('btn-a', 'jump'); bindButton('btn-b', 'crawl'); bindButton('btn-x', 'climb'); bindButton('btn-y', 'slap');
+
+// 👇 新增開始：HELP 按鈕點擊事件 👇
+const btnHelp = document.getElementById('btn-help');
+if (btnHelp) {
+  btnHelp.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (gameState === STATE.PLAYING) {
+      gameState = STATE.STAGE_HELP;
+      helpCurrentPage = 1;
+    } else if (gameState === STATE.STAGE_HELP) {
+      gameState = STATE.PLAYING;
+    }
+  });
+}
+// 👆 新增結束 👆
+
+// 綁定左側虛擬搖桿 (支援多點觸控、連按兩下方向奔跑、斜向輸入)
+(function initVirtualJoystick() {
+  const joyBase = document.getElementById('joystick-base');
+  const joyKnob = document.getElementById('joystick-knob');
+  if (!joyBase || !joyKnob) return;
+
+  let joyActive = false;
+  let joyTouchId = null;
+  const maxRadius = 44;   // 搖桿頭最大推移半徑 (px)
+  const deadzone = 0.26;  // 觸發方向判定的死區比例 (26%)
+
+  function updateJoystickByClientXY(clientX, clientY) {
+    const rect = joyBase.getBoundingClientRect();
+    const cx = rect.left + rect.width * 0.5;
+    const cy = rect.top + rect.height * 0.5;
+
+    let dx = clientX - cx;
+    let dy = clientY - cy;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > maxRadius) {
+      dx = (dx / dist) * maxRadius;
+      dy = (dy / dist) * maxRadius;
+    }
+
+    joyKnob.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+
+    const normX = dx / maxRadius;
+    const normY = dy / maxRadius;
+
+    input.left  = normX < -deadzone;
+    input.right = normX >  deadzone;
+    input.up    = normY < -deadzone;
+    input.down  = normY >  deadzone;
+  }
+
+  function resetJoystick() {
+    joyActive = false;
+    joyTouchId = null;
+    joyKnob.classList.remove('active');
+    joyKnob.style.transform = 'translate(0px, 0px)';
+    input.left = input.right = input.up = input.down = false;
+  }
+
+  // 滑鼠操作支援 (電腦測試用)
+  joyBase.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    joyActive = true;
+    joyTouchId = null;
+    joyKnob.classList.add('active');
+    updateJoystickByClientXY(e.clientX, e.clientY);
+  });
+  window.addEventListener('mousemove', e => {
+    if (!joyActive || joyTouchId !== null) return;
+    updateJoystickByClientXY(e.clientX, e.clientY);
+  });
+  window.addEventListener('mouseup', () => {
+    if (joyActive && joyTouchId === null) resetJoystick();
+  });
+
+  // 手機多點觸控支援 (左手推搖桿時，右手可獨立按 XYAB)
+  joyBase.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (joyActive) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    joyActive = true;
+    joyTouchId = t.identifier;
+    joyKnob.classList.add('active');
+    updateJoystickByClientXY(t.clientX, t.clientY);
+  }, { passive: false });
+
+  window.addEventListener('touchmove', e => {
+    if (!joyActive || joyTouchId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === joyTouchId) {
+        e.preventDefault();
+        updateJoystickByClientXY(t.clientX, t.clientY);
+        break;
+      }
+    }
+  }, { passive: false });
+
+  const onTouchEnd = e => {
+    if (!joyActive || joyTouchId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === joyTouchId) {
+        resetJoystick();
+        break;
+      }
+    }
+  };
+  window.addEventListener('touchend', onTouchEnd, { passive: false });
+  window.addEventListener('touchcancel', onTouchEnd, { passive: false });
+})();
+
+// 綁定左上方切換按鈕與九宮格八向實體按鍵 (支援多點觸控與滑動換鍵)
+(function initEightWayDpadAndToggle() {
+  const toggleBtn = document.getElementById('btn-toggle-dpad');
+  const joyBase = document.getElementById('joystick-base');
+  const joyKnob = document.getElementById('joystick-knob');
+  const dpadGrid = document.getElementById('dpad-8way-grid');
+  const hintEl = document.querySelector('.dpad-hint');
+  if (!toggleBtn || !joyBase || !dpadGrid) return;
+
+  let isDpadMode = false;
+  const dpadBtns = Array.from(dpadGrid.querySelectorAll('.dpad-btn'));
+  const activeTouches = new Map(); // touchId -> btnElement
+  let mouseDownOnGrid = false;
+  let activeMouseBtn = null;
+
+  function clearAllDirs() {
+    input.left = input.right = input.up = input.down = false;
+    dpadBtns.forEach(b => b.classList.remove('pressed'));
+  }
+
+  function recomputeDirsFromActiveBtns() {
+    let u = false, d = false, l = false, r = false;
+    dpadBtns.forEach(b => b.classList.remove('pressed'));
+
+    const applyBtn = (btn) => {
+      if (!btn) return;
+      btn.classList.add('pressed');
+      const dirs = (btn.dataset.dirs || '').split(',');
+      if (dirs.includes('up')) u = true;
+      if (dirs.includes('down')) d = true;
+      if (dirs.includes('left')) l = true;
+      if (dirs.includes('right')) r = true;
+    };
+
+    for (const btn of activeTouches.values()) applyBtn(btn);
+    if (mouseDownOnGrid && activeMouseBtn) applyBtn(activeMouseBtn);
+
+    input.up = u;
+    input.down = d;
+    input.left = l;
+    input.right = r;
+  }
+
+  // 點擊左上角切換按鈕：在「虛擬搖桿」與「九宮格八向實體鍵」間切換
+  toggleBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    isDpadMode = !isDpadMode;
+    clearAllDirs();
+    activeTouches.clear();
+    mouseDownOnGrid = false;
+    activeMouseBtn = null;
+
+    if (joyKnob) {
+      joyKnob.classList.remove('active');
+      joyKnob.style.transform = 'translate(0px, 0px)';
+    }
+
+    if (isDpadMode) {
+      joyBase.style.display = 'none';
+      dpadGrid.style.display = 'grid';
+      toggleBtn.textContent = '🕹️ 搖桿';
+      if (hintEl) hintEl.textContent = '➕ 八向鍵移動/爬梯/進門 ｜ B 爬行 ｜ A 跳躍/站立';
+    } else {
+      joyBase.style.display = 'flex';
+      dpadGrid.style.display = 'none';
+      toggleBtn.textContent = '➕ 八向鍵';
+      if (hintEl) hintEl.textContent = '🕹️ 搖桿移動/爬梯/進門 ｜ B 爬行 ｜ A 跳躍/站立';
+    }
+  });
+
+  function getDpadBtnAt(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    return el ? el.closest('.dpad-btn') : null;
+  }
+
+  // 電腦滑鼠點擊與拖曳滑動支援
+  dpadGrid.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    mouseDownOnGrid = true;
+    activeMouseBtn = e.target.closest('.dpad-btn');
+    recomputeDirsFromActiveBtns();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!mouseDownOnGrid) return;
+    const btn = getDpadBtnAt(e.clientX, e.clientY);
+    if (btn !== activeMouseBtn) {
+      activeMouseBtn = btn;
+      recomputeDirsFromActiveBtns();
+    }
+  });
+  window.addEventListener('mouseup', () => {
+    if (mouseDownOnGrid) {
+      mouseDownOnGrid = false;
+      activeMouseBtn = null;
+      recomputeDirsFromActiveBtns();
+    }
+  });
+
+  // 手機多點觸控與手指滑動換鍵支援
+  dpadGrid.addEventListener('touchstart', e => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      const btn = getDpadBtnAt(t.clientX, t.clientY);
+      if (btn) activeTouches.set(t.identifier, btn);
+    }
+    recomputeDirsFromActiveBtns();
+  }, { passive: false });
+
+  window.addEventListener('touchmove', e => {
+    if (activeTouches.size === 0) return;
+    let changed = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (activeTouches.has(t.identifier)) {
+        e.preventDefault();
+        const btn = getDpadBtnAt(t.clientX, t.clientY);
+        if (activeTouches.get(t.identifier) !== btn) {
+          activeTouches.set(t.identifier, btn);
+          changed = true;
+        }
+      }
+    }
+    if (changed) recomputeDirsFromActiveBtns();
+  }, { passive: false });
+
+  const endTouch = e => {
+    if (activeTouches.size === 0) return;
+    let changed = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (activeTouches.has(t.identifier)) {
+        activeTouches.delete(t.identifier);
+        changed = true;
+      }
+    }
+    if (changed) recomputeDirsFromActiveBtns();
+  };
+  window.addEventListener('touchend', endTouch, { passive: false });
+  window.addEventListener('touchcancel', endTouch, { passive: false });
+})();
+
+// 選角專屬待機與確認出擊動畫狀態
+
+let charConfirmAnim = { active: false, timer: 0, duration: 0.68 };
+function triggerCharSelectConfirm() {
+  if (loadedCharacters.length === 0 || charConfirmAnim.active) return;
+  charConfirmAnim.active = true;
+  charConfirmAnim.timer = 0;
+}
+
+canvas.addEventListener('click', e => {
+  if (gameState === STATE.STAGE_LOADING) return;
+  if (gameState === STATE.TITLE_LOADING) {
+    if (isGameBootComplete) {
+      const rect = canvas.getBoundingClientRect(), cx = (e.clientX - rect.left) * (canvas.width / rect.width), cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const bottomY = canvas.height - 54;
+      if (cy >= bottomY - 36 && cy <= bottomY + 36) {
+        if (cx >= canvas.width / 2 + 10) {
+          gameState = STATE.CONTROLS_GUIDE;
+          updateHudStatus();
+          return;
+        }
+      }
+      gameState = STATE.CHAR_SELECT;
+      updateHudStatus();
+    }
+    return;
+  }
+  if (gameState === STATE.CONTROLS_GUIDE) {
+    gameState = STATE.TITLE_LOADING;
+    updateHudStatus();
+    return;
+  }
+  const rect = canvas.getBoundingClientRect(), cx = (e.clientX - rect.left) * (canvas.width / rect.width), cy = (e.clientY - rect.top) * (canvas.height / rect.height), cX = canvas.width / 2;
+  if (gameState === STATE.PLAYING && (player.won || player.dead)) {
+    const btnY = canvas.height / 2 + 50;
+    if (cy >= btnY - 35 && cy <= btnY + 35) { const nextUnlockedIdx = findNextUnlockedStageIndex(selectedStageIdx), isAllCleared = (nextUnlockedIdx === -1); if (player.won && isAllCleared) { gameState = STATE.STAGE_SELECT; particles.length = 0; updateHudStatus(); } else if (cx < cX) { if (player.won) goToNextStage(); else resetStage(); } else { gameState = STATE.STAGE_SELECT; particles.length = 0; updateHudStatus(); } } return;
+  }
+  if (gameState === STATE.CHAR_SELECT && cx >= canvas.width - 210 && cy >= canvas.height - 70) { if (loadedCharacters.length > 0) { triggerCharSelectConfirm(); } return; }
+  if (gameState === STATE.STAGE_SELECT && cy >= canvas.height - 70) { if (cx >= canvas.width - 155 && cx <= canvas.width - 20) { gameState = STATE.CHAR_SELECT; updateHudStatus(); return; } if (cx >= canvas.width - 310 && cx < canvas.width - 155 && loadedStages.length > 0) { const curSt = loadedStages[selectedStageIdx]; if (curSt && !curSt.locked) loadAndStartStage(selectedStageIdx); return; } }
+  if (gameState === STATE.CHAR_SELECT && loadedCharacters.length > 0 && !charConfirmAnim.active) {
+    const cW = 240, cH = 300, st = cW + 46, cY = 128;
+    loadedCharacters.forEach((_, idx) => { const x = cX + (idx - charScrollVisualIdx) * st - cW / 2; if (cx >= x && cx <= x + cW && cy >= cY - 20 && cy <= cY + cH) { if (selectedCharIdx === idx) triggerCharSelectConfirm(); else { selectedCharIdx = idx; charSpinAngle = 0; } updateHudStatus(); } });
+  } else if (gameState === STATE.STAGE_SELECT && loadedStages.length > 0) {
+    const bW = 270, bH = 265, st = bW + 46, bY = 185;
+    loadedStages.forEach((stObj, idx) => { const x = cX + (idx - stageScrollVisualIdx) * st - bW / 2; if (cx >= x && cx <= x + bW && cy >= bY - 20 && cy <= bY + bH) { if (selectedStageIdx === idx) { if (!stObj.locked) loadAndStartStage(selectedStageIdx); } else { selectedStageIdx = idx; updateHudStatus(); } } });
+  }
+});
+// 支援鍵盤 + Android 手把原生 D-Pad / 搖桿鍵盤映射 (相容 e.code, e.key, e.keyCode)
+function matchKeyDir(e) {
+  const c = e.code || '', k = e.key || '', kc = e.keyCode || e.which || 0;
+  if (c === 'ArrowLeft'  || c === 'KeyA' || k === 'ArrowLeft'  || k === 'a' || k === 'A' || kc === 37 || kc === 21) return 'left';
+  if (c === 'ArrowRight' || c === 'KeyD' || k === 'ArrowRight' || k === 'd' || k === 'D' || kc === 39 || kc === 22) return 'right';
+  if (c === 'ArrowUp'    || c === 'KeyW' || k === 'ArrowUp'    || k === 'w' || k === 'W' || kc === 38 || kc === 19) return 'up';
+  if (c === 'ArrowDown'  || c === 'KeyS' || k === 'ArrowDown'  || k === 's' || k === 'S' || kc === 40 || kc === 20) return 'down';
+  if (c === 'KeyJ' || c === 'Space' || c === 'Enter' || k === ' ' || k === 'Enter' || kc === 96 || kc === 23 || kc === 13) return 'jump';
+  if (c === 'KeyK' || c === 'KeyC' || c === 'Backspace' || k === 'Backspace' || k === 'Escape' || kc === 97 || kc === 4) return 'crawl';
+  if (c === 'KeyU' || c === 'KeyX' || c === 'ShiftLeft' || kc === 99) return 'climb';
+  if (c === 'KeyI' || c === 'KeyY' || kc === 100) return 'slap';
+  return null;
+}
+
+const KEY_TO_BTN_ID = { left: 'pad-left', right: 'pad-right', up: 'pad-up', down: 'pad-down', jump: 'btn-a', crawl: 'btn-b', climb: 'btn-x', slap: 'btn-y' };
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'KeyB') { toggleCollisionDebug(); return; }
+  const act = matchKeyDir(e);
+  if (act) {
+    e.preventDefault();
+    input[act] = true;
+    const btnEl = document.getElementById(KEY_TO_BTN_ID[act]);
+    if (btnEl) btnEl.classList.add('pressed');
+  }
+}, { passive: false });
+
+window.addEventListener('keyup', e => {
+  const act = matchKeyDir(e);
+  if (act) {
+    e.preventDefault();
+    input[act] = false;
+    const btnEl = document.getElementById(KEY_TO_BTN_ID[act]);
+    if (btnEl) btnEl.classList.remove('pressed');
+  }
+}, { passive: false });
+
+let prevGamepadState = { left: false, right: false, up: false, down: false, a: false, b: false, x: false, y: false };
+let gamepadAxisBaseline = {};
+
+function requestGameFullScreen() {
+  const docEl = document.documentElement;
+  const reqFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
+  if (reqFs && !document.fullscreenElement && !document.webkitFullscreenElement) {
+    reqFs.call(docEl).catch(() => {});
+  }
+  window.scrollTo(0, 1);
+}
+
+function toggleFullScreen() {
+  const docEl = document.documentElement;
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (!isFs) {
+    const reqFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
+    if (reqFs) reqFs.call(docEl).catch(() => {});
+  } else {
+    const exitFs = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    if (exitFs) exitFs.call(document).catch(() => {});
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const btn = document.getElementById('btn-fullscreen');
+  if (btn) btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '⛶ 退出' : '⛶ 全螢幕';
+});
+
+document.addEventListener('touchstart', function autoFsOnFirstTouch(e) {
+  if (e.target.closest('.joystick-base, .dpad-btn, .xbox-btn, #gameCanvas')) {
+    requestGameFullScreen();
+    document.removeEventListener('touchstart', autoFsOnFirstTouch);
+  }
+}, { passive: true });
+
+window.addEventListener('gamepadconnected', (e) => {
+  gamepadAxisBaseline[e.gamepad.index] = (e.gamepad.axes || []).slice();
+  updateHudStatus();
+});
+window.addEventListener('gamepaddisconnected', (e) => {
+  delete gamepadAxisBaseline[e.gamepad.index];
+  updateHudStatus();
+});
+
+function pollHardwareGamepad() {
+  if (!navigator.getGamepads) return;
+  const pads = navigator.getGamepads();
+  if (!pads) return;
+
+  const deadzone = 0.28;
+  let gLeft = false, gRight = false, gUp = false, gDown = false;
+  let gA = false, gB = false, gX = false, gY = false;
+  let hasAnyPad = false;
+
+  const isBtnPressed = (btn) => {
+    if (!btn) return false;
+    if (typeof btn === 'number') return btn > 0.4;
+    return !!(btn.pressed || btn.touched || btn.value > 0.4);
+  };
+
+  for (let i = 0; i < pads.length; i++) {
+    const gp = pads[i];
+    if (!gp || !gp.connected) continue;
+    hasAnyPad = true;
+
+    const axes = gp.axes || [];
+    const btns = gp.buttons || [];
+
+    if (!gamepadAxisBaseline[i] || gamepadAxisBaseline[i].length !== axes.length) {
+      gamepadAxisBaseline[i] = axes.map(v => (Math.abs(v) > 0.8 ? v : 0));
+    }
+    const base = gamepadAxisBaseline[i];
+
+    const getAxisVal = (idx) => {
+      if (idx >= axes.length) return 0;
+      const raw = axes[idx];
+      if (!Number.isFinite(raw)) return 0;
+      if (Math.abs(base[idx]) > 0.8) return 0;
+      return raw;
+    };
+
+    const axisPairs = [[0, 1], [2, 3], [6, 7], [4, 5]];
+    for (const [axX, axY] of axisPairs) {
+      const vx = getAxisVal(axX);
+      const vy = getAxisVal(axY);
+      if (vx < -deadzone) gLeft = true;
+      if (vx >  deadzone) gRight = true;
+      if (vy < -deadzone) gUp = true;
+      if (vy >  deadzone) gDown = true;
+    }
+
+    for (const hatIdx of [9, 8]) {
+      if (axes.length > hatIdx) {
+        const hat = axes[hatIdx];
+        if (Number.isFinite(hat) && hat >= -1.05 && hat <= 1.05 && Math.abs(hat) > 0.01) {
+          if (hat <= -0.65 || hat >= 0.9)  gUp = true;
+          if (hat >= -0.2  && hat <= 0.5)  gDown = true;
+          if (hat >= -0.8  && hat <= -0.05) gRight = true;
+          if (hat >= 0.35  && hat <= 1.05)  gLeft = true;
+        }
+      }
+    }
+
+    if (isBtnPressed(btns[14])) gLeft = true;
+    if (isBtnPressed(btns[15])) gRight = true;
+    if (isBtnPressed(btns[12])) gUp = true;
+    if (isBtnPressed(btns[13])) gDown = true;
+
+    if (isBtnPressed(btns[0])) gA = true;
+    if (isBtnPressed(btns[1]) || isBtnPressed(btns[5])) gB = true;
+    if (isBtnPressed(btns[2]) || isBtnPressed(btns[4])) gX = true;
+    if (isBtnPressed(btns[3])) gY = true;
+  }
+
+  if (!hasAnyPad) return;
+
+  const syncKey = (cur, prev, keyName, btnId) => {
+    if (cur !== prev) {
+      input[keyName] = cur;
+      const el = document.getElementById(btnId);
+      if (el) el.classList.toggle('pressed', cur);
+    }
+  };
+
+  syncKey(gLeft,  prevGamepadState.left,  'left',  'pad-left');
+  syncKey(gRight, prevGamepadState.right, 'right', 'pad-right');
+  syncKey(gUp,    prevGamepadState.up,    'up',    'pad-up');
+  syncKey(gDown,  prevGamepadState.down,  'down',  'pad-down');
+  syncKey(gA,     prevGamepadState.a,     'jump',  'btn-a');
+  syncKey(gB,     prevGamepadState.b,     'crawl', 'btn-b');
+  syncKey(gX,     prevGamepadState.x,     'climb', 'btn-x');
+  syncKey(gY,     prevGamepadState.y,     'slap',  'btn-y');
+
+  prevGamepadState = { left: gLeft, right: gRight, up: gUp, down: gDown, a: gA, b: gB, x: gX, y: gY };
+}
+
+function updateMenuLogic(dt) {
+  // 👇 新增開始：HELP 視窗的翻頁與關閉邏輯 👇
+  if (gameState === STATE.STAGE_HELP) {
+    const hasPage2 = rawCollisionData && rawCollisionData.stageHelp && rawCollisionData.stageHelp.length > 0;
+    const totalPages = hasPage2 ? 2 : 1;
+    if (wasJustPressed('left') && helpCurrentPage > 1) helpCurrentPage--;
+    if (wasJustPressed('right') && helpCurrentPage < totalPages) helpCurrentPage++;
+    if (wasJustPressed('crawl')) { gameState = STATE.PLAYING; } // crawl 對應 B 鍵
+    return;
+  }
+  // 👆 新增結束 👆
+  if (gameState === STATE.TITLE_LOADING) {  
+    gameBootVisualProg += (gameBootProgress - gameBootVisualProg) * Math.min(1, dt * 14);
+    if (isGameBootComplete) {
+      if (wasJustPressed('jump') || wasJustPressed('up')) {
+        gameState = STATE.CHAR_SELECT;
+        charConfirmAnim.active = false;
+        updateHudStatus();
+      } else if (wasJustPressed('climb')) {
+        gameState = STATE.CONTROLS_GUIDE;
+        updateHudStatus();
+      }
+    }
+    return;
+  }
+  if (gameState === STATE.CONTROLS_GUIDE) {
+    if (wasJustPressed('crawl')) {
+      gameState = STATE.TITLE_LOADING;
+      updateHudStatus();
+    }
+    return;
+  }
+  charSpinAngle += dt * 2.6;
+  charScrollVisualIdx += (selectedCharIdx - charScrollVisualIdx) * Math.min(1, dt * 12);
+  stageScrollVisualIdx += (selectedStageIdx - stageScrollVisualIdx) * Math.min(1, dt * 12);
+
+  if (gameState === STATE.CHAR_SELECT && loadedCharacters.length > 0) {
+    if (charConfirmAnim.active) {
+      charConfirmAnim.timer += dt;
+      if (charConfirmAnim.timer >= charConfirmAnim.duration) {
+        charConfirmAnim.active = false;
+        charConfirmAnim.timer = 0;
+        gameState = STATE.STAGE_SELECT;
+        updateHudStatus();
+      }
+      return;
+    }
+    if (wasJustPressed('left')) { selectedCharIdx = (selectedCharIdx - 1 + loadedCharacters.length) % loadedCharacters.length; charSpinAngle = 0; updateHudStatus(); }
+    else if (wasJustPressed('right')) { selectedCharIdx = (selectedCharIdx + 1) % loadedCharacters.length; charSpinAngle = 0; updateHudStatus(); }
+    else if (wasJustPressed('jump') || wasJustPressed('up')) { triggerCharSelectConfirm(); }
+  } else if (gameState === STATE.STAGE_SELECT) {
+    if (wasJustPressed('crawl')) { gameState = STATE.CHAR_SELECT; charConfirmAnim.active = false; updateHudStatus(); return; }
+    if (loadedStages.length === 0) return;
+    if (wasJustPressed('left')) { selectedStageIdx = (selectedStageIdx - 1 + loadedStages.length) % loadedStages.length; updateHudStatus(); }
+    else if (wasJustPressed('right')) { selectedStageIdx = (selectedStageIdx + 1) % loadedStages.length; updateHudStatus(); }
+    else if (wasJustPressed('jump') || wasJustPressed('up')) { const curSt = loadedStages[selectedStageIdx]; if (curSt && !curSt.locked) loadAndStartStage(selectedStageIdx); }
+  }
+}
+
+
+const particles = [];
+function addSparks(x, y, intense) { for (let i = 0; i < (intense ? 5 : 2); i++) particles.push({ type: 'spark', x: x + (Math.random() - 0.5) * 24, y: y + (Math.random() - 0.5) * 10, vx: (Math.random() - 0.5) * 340, vy: Math.random() * 180 + 20, life: 0.28 + Math.random() * 0.25, maxLife: 0.53, color: intense ? '#ff3b1f' : '#ffe066', r: intense ? 4.2 : 2.8 }); }
+function addSmoke(x, y, isHeavy = false) { for (let i = 0; i < (isHeavy ? 2 : 1); i++) particles.push({ type: 'smoke', x: x + (Math.random() - 0.5) * 36, y: y - 14 - Math.random() * 16, vx: (Math.random() - 0.5) * 135 - player.vx * 0.15, vy: -115 - Math.random() * 125, life: 1.6 + Math.random() * 0.8, maxLife: 2.4, r: 12 + Math.random() * 14 }); }
+function samplePolylineY(pts, x) {
+  for (let i = 0; i < pts.length - 1; i++) { const minX = Math.min(pts[i][0], pts[i+1][0]), maxX = Math.max(pts[i][0], pts[i+1][0]); if (x >= minX && x <= maxX) return pts[i+1][0] === pts[i][0] ? pts[i][1] : pts[i][1] + ((x - pts[i][0]) / (pts[i+1][0] - pts[i][0])) * (pts[i+1][1] - pts[i][1]); }
+  return null;
+}
+function sampleGroundY(x, refY = 0) {
+  let bestY = null; for (const poly of GROUND_POLYLINES) { const gY = samplePolylineY(poly.pts, x); if (gY !== null && gY >= refY - 20) { if (bestY === null || gY < bestY) bestY = gY; } } return bestY;
+}
+function getActiveCharStats() { 
+  const ch = loadedCharacters[selectedCharIdx]; 
+  const stats = ch ? { speed: ch.stats.speed, ignition: ch.stats.ignition, resist: ch.stats.resist, extinguish: ch.stats.extinguish, headR: ch.appearance.headRadius, bodyW: ch.appearance.bodyWidth, bodyH: ch.appearance.bodyHeight, limbW: ch.appearance.limbWidth, ponytail: !!ch.appearance.hasPonytail, headColor: ch.appearance.headColor || '#e03131', bodyColor: ch.appearance.bodyColor || '#d99b38' } : { speed: 5, ignition: 4, resist: 5, extinguish: 1.5, headR: 25, bodyW: 18, bodyH: 44, limbW: 6.5, ponytail: false, headColor: '#e03131', bodyColor: '#d99b38' }; 
+  stats.bodyH = stats.bodyH * 0.75; // 身體縮短四分之一
+  stats.limbW = stats.limbW * 0.6;  // 手腳改細
+  return stats; 
+}
+
+function createPluginContext() {
+  return {
+    input, wasJustPressed, addSparks, addSmoke, particles,
+    mechanisms: activeMechanisms, items: activeItems,
+    groundPolylines: GROUND_POLYLINES, solidWalls: SOLID_WALLS, frictionZones: FRICTION_ZONES,
+    samplePolylineY, sampleGroundY, WORLD_W, WORLD_H,
+    getCharStats: getActiveCharStats,
+    isHeadBlocked: isHeadBlockedToStand,
+    triggerArmPose: function(poseName, duration = 0.35) {
+      player.customArmPose = poseName;
+      player.customArmTimer = duration;
+    }
+  };
+}
+function toggleCameraView() { followCameraMode = !followCameraMode; document.getElementById('btn-cam').textContent = `🎥 ${followCameraMode ? '跟隨' : '全景'}`; }
+function toggleCollisionDebug() { showDebugCollision = !showDebugCollision; const btn = document.getElementById('btn-debug-col'); btn.textContent = `📐 碰撞:${showDebugCollision ? '開' : '關'}`; btn.style.background = showDebugCollision ? '#8f2447' : '#2b2320'; btn.style.color = showDebugCollision ? '#ffffff' : '#f5b041'; }
+
+function resetStage() {
+  const c = getActiveCharStats();
+  player.x = SPAWN_POINT.x ?? 2450; player.y = SPAWN_POINT.y ?? 215; player.vx = player.vy = 0; player.dir = SPAWN_POINT.dir ?? -1;
+  player.grounded = true; player.crawling = player.climbing = player.raisingHands = player.ledgeClimbing = player.ledgeForceCrawl = false;
+  player.ledgeClimbingDown = false;
+  player.fallStartY = player.y;
+  player.deathCause = 'fire';
+  player.stanceT = 0; 
+  player.landSquatTimer = 0;
+  player.turning = false;
+  player.turnTimer = 0;
+  player.turnFromDir = player.dir;
+  player.turnToDir = player.dir;
+
+  player.holdingItem = null; player.customArmPose = null; player.customArmTimer = 0; player.ledgeProgress = 0;
+  player.activeCustomAction = null; player.customActionTimer = 0;
+  player.speedMultiplier = 1.0; player.overrideVx = null; player.overrideVy = null;
+  player.customAnimSpeed = null; player.lockDefaultMove = false; player.customHitbox = null;
+  // 通知所有已註冊的動作外掛進行重置（若外掛有定義 onReset）
+  for (const actId in window.GAME_ACTIONS_REGISTRY) {
+    const act = window.GAME_ACTIONS_REGISTRY[actId];
+    if (act && typeof act.onReset === 'function') act.onReset(player);
+  }
+  player.onFire = player.slapping = player.won = player.dying = false; player.deathTimer = 0; player.dead = false;
+  player.hp = 100; player.heat = player.slapProgress = 0; player.maxHeat = c.ignition * 25; particles.length = 0; nearestInteractableItem = null;
+  const st = loadedStages[selectedStageIdx]; if (st && rawCollisionData) instantiateStageEntities(st.path, st.folder, rawCollisionData);
+}
+
+function shouldWallBlockPlayer(w, pTop, pBot) {
+  if (pBot <= w.yTop || pTop >= w.yBottom) return false;
+
+  const wallX = w.x !== undefined ? w.x : ((w.x1 + w.x2) * 0.5);
+
+  if (w.yBottom < WORLD_H - 15) {
+    let connectedFloorY = null;
+    for (const poly of GROUND_POLYLINES) {
+      if (!poly.pts || poly.pts.length < 2) continue;
+      const checkXs = [wallX, wallX - 4, wallX + 4];
+      for (const cx of checkXs) {
+        const gy = samplePolylineY(poly.pts, cx);
+        if (gy !== null && Math.abs(gy - w.yBottom) <= 12) {
+          connectedFloorY = gy;
+          break;
+        }
+      }
+      if (connectedFloorY !== null) break;
+    }
+
+    if (connectedFloorY !== null && player.y > connectedFloorY + 8) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function findClimbableLedgePlatform() {
+  if (player.climbing || player.ledgeClimbing || player.ledgeClimbingDown || player.crawling) return null;
+  const reachTopY = player.y - PHYS_STAND_H - 22;
+  const reachBotY = player.y - 24;
+
+  const hasWallBlockingCrawlSpace = (wx, wy) => {
+    for (const w of SOLID_WALLS) {
+      const wallX = w.x !== undefined ? w.x : ((w.x1 + w.x2) * 0.5);
+      if (Math.abs(wx - wallX) <= 18 && w.yTop < wy - 6 && w.yBottom > wy - PHYS_CRAWL_H) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const shouldCrawlAfterClimb = (checkX, gY) => {
+    for (const z of FRICTION_ZONES) {
+      if (z.requireCrawl && z.blockBot !== undefined && checkX >= z.x1 && checkX <= z.x2 && gY >= z.yMin && gY <= z.yMax) {
+        if (gY - PHYS_STAND_H < z.blockBot) return true;
+      }
+    }
+    return false;
+  };
+
+  const isCeilingBlockedForCrawl = (checkX, gY) => {
+    for (const z of FRICTION_ZONES) {
+      if (z.requireCrawl && z.blockBot !== undefined && checkX >= z.x1 && checkX <= z.x2 && gY >= z.yMin && gY <= z.yMax) {
+        if (gY - PHYS_CRAWL_H < z.blockBot) return true;
+      }
+    }
+    return false;
+  };
+
+  const hasFloorAtSide = (edgeX, edgeY, sideDir) => {
+    const testX = edgeX + sideDir * 5;
+    for (const poly of GROUND_POLYLINES) {
+      const gy = samplePolylineY(poly.pts, testX);
+      if (gy !== null && gy <= edgeY + 12 && gy >= edgeY - 25) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const poly of GROUND_POLYLINES) {
+    if (!poly.pts || poly.pts.length === 0) continue;
+
+    for (let i = 0; i < poly.pts.length; i++) {
+      const ptX = poly.pts[i][0];
+      const ptY = poly.pts[i][1];
+      if (ptY < reachTopY || ptY > reachBotY) continue;
+
+      const isLeftEdge = (i < poly.pts.length - 1) && (poly.pts[i + 1][0] > ptX) && !hasFloorAtSide(ptX, ptY, -1);
+      if (isLeftEdge && player.dir === 1) {
+        if (player.x >= ptX - 34 && player.x <= ptX + 8) {
+          const standX = Math.max(35, Math.min(WORLD_W - 35, ptX + 16));
+          const standY = samplePolylineY(poly.pts, standX) ?? ptY;
+          if (!hasWallBlockingCrawlSpace(ptX, ptY) && !hasWallBlockingCrawlSpace(standX, standY) && !isCeilingBlockedForCrawl(standX, standY)) {
+            return {
+              grabX: ptX,
+              targetX: standX,
+              targetY: standY,
+              forceCrawl: shouldCrawlAfterClimb(standX, standY)
+            };
+          }
+        }
+      }
+
+      const isRightEdge = (i > 0) && (poly.pts[i - 1][0] < ptX) && !hasFloorAtSide(ptX, ptY, 1);
+      if (isRightEdge && player.dir === -1) {
+        if (player.x >= ptX - 8 && player.x <= ptX + 34) {
+          const standX = Math.max(35, Math.min(WORLD_W - 35, ptX - 16));
+          const standY = samplePolylineY(poly.pts, standX) ?? ptY;
+          if (!hasWallBlockingCrawlSpace(ptX, ptY) && !hasWallBlockingCrawlSpace(standX, standY) && !isCeilingBlockedForCrawl(standX, standY)) {
+            return {
+              grabX: ptX,
+              targetX: standX,
+              targetY: standY,
+              forceCrawl: shouldCrawlAfterClimb(standX, standY)
+            };
+          }
+        }
+      }
+    }
+  }
+
+  for (const m of activeMechanisms) {
+    if (m.hidden) continue;
+    const def = window.GAME_MECHANISMS_REGISTRY[m.type], isSolid = m.solid ?? (def && def.solid) ?? (m.type && (m.type.includes('platform') || m.type.includes('button')));
+    if (isSolid) {
+      const mLeft = m.x, mRight = m.x + m.width, gY = m.y;
+      if (gY >= reachTopY && gY <= reachBotY) {
+        if (player.dir === 1 && player.x >= mLeft - 34 && player.x <= mLeft + 8 && !hasWallBlockingCrawlSpace(mLeft, gY)) {
+          return { grabX: mLeft, targetX: mLeft + 16, targetY: gY, forceCrawl: shouldCrawlAfterClimb(mLeft + 16, gY) };
+        }
+        if (player.dir === -1 && player.x >= mRight - 8 && player.x <= mRight + 34 && !hasWallBlockingCrawlSpace(mRight, gY)) {
+          return { grabX: mRight, targetX: mRight - 16, targetY: gY, forceCrawl: shouldCrawlAfterClimb(mRight - 16, gY) };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function findClimbDownLedgePlatform() {
+  if (!player.grounded || player.climbing || player.ledgeClimbing || player.ledgeClimbingDown || player.crawling) return null;
+
+  const hasWallBlockingCrawlSpace = (wx, wy) => {
+    for (const w of SOLID_WALLS) {
+      const wallX = w.x !== undefined ? w.x : ((w.x1 + w.x2) * 0.5);
+      if (Math.abs(wx - wallX) <= 18 && w.yTop < wy - 6 && w.yBottom > wy - PHYS_CRAWL_H) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const isCeilingBlockedForCrawl = (checkX, gY) => {
+    for (const z of FRICTION_ZONES) {
+      if (z.requireCrawl && z.blockBot !== undefined && checkX >= z.x1 && checkX <= z.x2 && gY >= z.yMin && gY <= z.yMax) {
+        if (gY - PHYS_CRAWL_H < z.blockBot) return true;
+      }
+    }
+    return false;
+  };
+
+  const hasFloorAtSide = (edgeX, edgeY, sideDir) => {
+    const testX = edgeX + sideDir * 5;
+    for (const poly of GROUND_POLYLINES) {
+      const gy = samplePolylineY(poly.pts, testX);
+      if (gy !== null && gy <= edgeY + 12 && gy >= edgeY - 25) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const poly of GROUND_POLYLINES) {
+    if (!poly.pts || poly.pts.length === 0) continue;
+
+    for (let i = 0; i < poly.pts.length; i++) {
+      const ptX = poly.pts[i][0];
+      const ptY = poly.pts[i][1];
+      if (Math.abs(player.y - ptY) > 24) continue;
+
+      const isLeftEdge = (i < poly.pts.length - 1) && (poly.pts[i + 1][0] > ptX) && !hasFloorAtSide(ptX, ptY, -1);
+      if (isLeftEdge) {
+        if (player.x >= ptX - 18 && player.x <= ptX + 42) {
+          const standX = Math.max(35, Math.min(WORLD_W - 35, ptX + 16));
+          const standY = samplePolylineY(poly.pts, standX) ?? ptY;
+          if (!hasWallBlockingCrawlSpace(ptX, ptY) && !hasWallBlockingCrawlSpace(standX, standY) && !isCeilingBlockedForCrawl(standX, standY)) {
+            return {
+              grabX: ptX,
+              ledgeY: ptY,
+              hangX: ptX - PHYS_HALF_W - 2,
+              targetY: ptY + PHYS_STAND_H,
+              insideDir: 1
+            };
+          }
+        }
+      }
+
+      const isRightEdge = (i > 0) && (poly.pts[i - 1][0] < ptX) && !hasFloorAtSide(ptX, ptY, 1);
+      if (isRightEdge) {
+        if (player.x >= ptX - 42 && player.x <= ptX + 18) {
+          const standX = Math.max(35, Math.min(WORLD_W - 35, ptX - 16));
+          const standY = samplePolylineY(poly.pts, standX) ?? ptY;
+          if (!hasWallBlockingCrawlSpace(ptX, ptY) && !hasWallBlockingCrawlSpace(standX, standY) && !isCeilingBlockedForCrawl(standX, standY)) {
+            return {
+              grabX: ptX,
+              ledgeY: ptY,
+              hangX: ptX + PHYS_HALF_W + 2,
+              targetY: ptY + PHYS_STAND_H,
+              insideDir: -1
+            };
+          }
+        }
+      }
+    }
+  }
+
+  for (const m of activeMechanisms) {
+    if (m.hidden) continue;
+    const def = window.GAME_MECHANISMS_REGISTRY[m.type], isSolid = m.solid ?? (def && def.solid) ?? (m.type && (m.type.includes('platform') || m.type.includes('button')));
+    if (isSolid) {
+      const mLeft = m.x, mRight = m.x + m.width, gY = m.y;
+      if (Math.abs(player.y - gY) <= 24) {
+        if (player.x >= mLeft - 18 && player.x <= mLeft + 42 && !hasWallBlockingCrawlSpace(mLeft, gY)) {
+          return { grabX: mLeft, ledgeY: gY, hangX: mLeft - PHYS_HALF_W - 2, targetY: gY + PHYS_STAND_H, insideDir: 1 };
+        }
+        if (player.x >= mRight - 42 && player.x <= mRight + 18 && !hasWallBlockingCrawlSpace(mRight, gY)) {
+          return { grabX: mRight, ledgeY: gY, hangX: mRight + PHYS_HALF_W + 2, targetY: gY + PHYS_STAND_H, insideDir: -1 };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function isHeadBlockedToStand(px, py) {
+  // 1. 舊版陣列相容
+  for (const z of FRICTION_ZONES) {
+    if (z.requireCrawl && px + PHYS_HALF_W - 4 > z.x1 && px - PHYS_HALF_W + 4 < z.x2 && py >= z.yMin && py <= z.yMax) {
+      if (z.blockBot === undefined || (py - PHYS_STAND_H < z.blockBot)) {
+        return true;
+      }
+    }
+  }
+
+  // 2. 模組化新版：輪詢所有啟用的外掛，若外掛有定義 isHeadBlocked 方法，由外掛說了算！
+  if (typeof activeMechanisms !== 'undefined') {
+    for (const m of activeMechanisms) {
+      if (m.hidden) continue;
+      const def = window.GAME_MECHANISMS_REGISTRY[m.type];
+      if (def && typeof def.isHeadBlocked === 'function') {
+        if (def.isHeadBlocked(m, px, py)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+function updateCustomActions(dt, pluginCtx) {
+  const keyMap = { A: 'jump', a: 'jump', jump: 'jump', B: 'crawl', b: 'crawl', crawl: 'crawl', X: 'climb', x: 'climb', climb: 'climb', Y: 'slap', y: 'slap', slap: 'slap', UP: 'up', up: 'up', DOWN: 'down', down: 'down', LEFT: 'left', left: 'left', RIGHT: 'right', right: 'right' };
+  for (const actId in window.GAME_ACTIONS_REGISTRY) {
+    const act = window.GAME_ACTIONS_REGISTRY[actId]; if (!act) continue;
+    const mappedKey = keyMap[act.triggerKey || act.key || act.button] || (act.triggerKey || act.key), justTriggered = mappedKey ? wasJustPressed(mappedKey) : false, isHolding = mappedKey ? !!input[mappedKey] : false;
+    if (justTriggered && typeof act.onTrigger === 'function') { player.activeCustomAction = act; player.customActionTimer = act.duration || 0.35; act.onTrigger(player, pluginCtx); }
+    if (typeof act.update === 'function') { act.update(player, dt, { ...pluginCtx, isHolding, justTriggered }); }
+  }
+  if (player.activeCustomAction) { player.customActionTimer -= dt; if (player.customActionTimer <= 0) player.activeCustomAction = null; }
+  if (player.customArmTimer > 0) { player.customArmTimer -= dt; if (player.customArmTimer <= 0) player.customArmPose = null; }
+}
+
+function updatePhysics(dt) {
+  let isLowStance = player.crawling || !!(player.customHitbox && player.customHitbox.isLow);
+  let curHalfW = player.customHitbox?.halfW ?? (player.crawling ? 52 : 16);
+  let curH = player.customHitbox?.height ?? getStanceHeight(isLowStance);
+  
+  document.getElementById('hp-bar').style.width = `${player.hp}%`;
+  document.getElementById('hp-val').textContent = `${Math.ceil(player.hp)}%`;
+  const hPct = Math.min(100, (player.heat / player.maxHeat) * 100);
+  document.getElementById('heat-bar').style.width = `${hPct}%`;
+  document.getElementById('heat-val').textContent = player.onFire ? '🔥著火!' : `${Math.floor(hPct)}%`;
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    
+    if (p.type === 'spark') {
+      p.vx *= 0.98;
+      p.vy = Math.max(-140, p.vy - 30 * dt);
+    } else if (p.type === 'death_ash') {
+      p.vx *= 0.96;
+      p.vy -= 400 * dt;
+    } else if (p.type === 'death_smoke') {
+      p.vx += Math.sin(performance.now() * 0.005 + i) * 30 * dt;
+      p.vy -= 200 * dt;
+    } else {
+      p.vx += Math.sin(performance.now() * 0.005 + i) * 35 * dt;
+      p.vy *= 0.992;
+    }
+    
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  if (player.won) {
+    if (wasJustPressed('jump') || wasJustPressed('up')) { goToNextStage(); return; }
+    if (wasJustPressed('crawl')) { gameState = STATE.STAGE_SELECT; particles.length = 0; updateHudStatus(); return; }
+    return;
+  }
+
+  if (player.hp <= 0 && !player.dead && !player.dying) {
+    player.dying = true;
+    player.deathTimer = 0;
+    player.vx = 0; player.vy = 0;
+  }
+
+  const pluginCtx = createPluginContext();
+  for (const m of activeMechanisms) { 
+    if (m.hidden) continue; 
+    m.prevX = m.x; m.prevY = m.y; 
+    const def = window.GAME_MECHANISMS_REGISTRY[m.type]; 
+    if (def && typeof def.update === 'function') def.update(m, player, dt, pluginCtx); 
+    m.dx = m.x - m.prevX; m.dy = m.y - m.prevY; 
+  }
+  
+  nearestInteractableItem = null;
+  for (const item of activeItems) {
+    if (item.hidden) continue; 
+    const def = window.GAME_ITEMS_REGISTRY[item.type]; 
+    if (def && typeof def.update === 'function') { def.update(item, player, dt, pluginCtx); }
+    if (!nearestInteractableItem && !player.holdingItem && !item.collected && !item.isHeld && !item.isThrown && def && typeof def.onInteract === 'function') { 
+      const inRange = typeof def.checkInteractRange === 'function' ? def.checkInteractRange(player, item, pluginCtx) : (Math.hypot(player.x - (item.x + item.width * 0.5), (player.y - 45) - (item.y + item.height * 0.5)) <= (item.interactionRange || def.interactionRange || 55)); 
+      if (inRange) { nearestInteractableItem = { item, def }; } 
+    }
+  }
+
+  if (player.dying) {
+    player.deathTimer += dt;
+    player.vx = 0; player.vy = 0;
+
+    if (player.deathCause !== 'fall' && player.deathTimer <= 1.0) {
+      for(let k = 0; k < 4; k++) { 
+        particles.push({
+          type: 'death_ash',
+          x: player.x + (Math.random() - 0.5) * 20,
+          y: player.y - 30 + (Math.random() - 0.5) * 40,
+          vx: (Math.random() - 0.5) * 280,
+          vy: -150 - Math.random() * 200,
+          life: 0.5 + Math.random() * 0.5,
+          maxLife: 1.0,
+          color: Math.random() > 0.5 ? '#1a1a1a' : '#333333',
+          r: 2 + Math.random() * 3
+        });
+      }
+      if (Math.random() < 0.4) {
+        particles.push({
+          type: 'death_smoke',
+          x: player.x + (Math.random() - 0.5) * 20,
+          y: player.y - 40,
+          vx: (Math.random() - 0.5) * 100,
+          vy: -100 - Math.random() * 100,
+          life: 0.6 + Math.random() * 0.4,
+          maxLife: 1.0,
+          r: 10 + Math.random() * 15
+        });
+      }
+    }
+
+    if (player.deathTimer >= 3.0) {
+      player.dying = false;
+      player.dead = true;
+    }
+    return;
+  }
+
+  if (player.dead) {
+    if (wasJustPressed('jump') || wasJustPressed('slap')) { resetStage(); return; }
+    if (wasJustPressed('crawl')) { gameState = STATE.STAGE_SELECT; particles.length = 0; updateHudStatus(); return; }
+    return;
+  }
+
+  if (player.ledgeClimbing) {
+    const climbDuration = 0.72; player.ledgeProgress = Math.min(1, player.ledgeProgress + dt / climbDuration); const p = player.ledgeProgress, hangX = player.ledgeGrabX - player.dir * 10, hangY = Math.min(player.ledgeStartY, player.ledgeTargetY + PHYS_STAND_H * 0.85), pullUpEndX = hangX + (player.ledgeGrabX - hangX) * 0.45, midX = player.ledgeGrabX + (player.ledgeTargetX - player.ledgeGrabX) * 0.55;
+    if (p < 0.18) { const k = p / 0.18; player.x = player.ledgeStartX + (hangX - player.ledgeStartX) * k; player.y = player.ledgeStartY + (hangY - player.ledgeStartY) * k; } else if (p < 0.45) { const k = (p - 0.18) / 0.27; const ease = 1 - Math.pow(1 - k, 2); player.x = hangX + (player.ledgeGrabX - hangX) * (k * 0.45); player.y = hangY + ((player.ledgeTargetY + 34) - hangY) * ease; } else if (p < 0.68) { const k = (p - 0.45) / 0.23; player.x = pullUpEndX + (midX - pullUpEndX) * k; player.y = (player.ledgeTargetY + 34) + ((player.ledgeTargetY + 12) - (player.ledgeTargetY + 34)) * k; } else if (p < 0.86) { const k = (p - 0.68) / 0.18; player.x = midX + (player.ledgeTargetX - midX) * k; player.y = (player.ledgeTargetY + 12) + (player.ledgeTargetY - (player.ledgeTargetY + 12)) * k; } else { player.x = player.ledgeTargetX; player.y = player.ledgeTargetY; }
+    player.vx = 0; player.vy = 0; player.animT += dt * 10;
+    if (p >= 1) {
+      player.x = player.ledgeTargetX;
+      player.y = player.ledgeTargetY;
+      player.ledgeClimbing = false;
+      player.raisingHands = false;
+      player.grounded = true;
+      if (player.ledgeForceCrawl) {
+        player.crawling = true;
+        player.ledgeForceCrawl = false;
+      }
+    }
+    return;
+  }
+
+  // 向下攀爬更新
+  if (player.ledgeClimbingDown) {
+    const downDuration = 0.68;
+    player.ledgeProgress = Math.min(1, player.ledgeProgress + dt / downDuration);
+    const p = player.ledgeProgress;
+
+    if (p < 0.25) {
+      const k = p / 0.25;
+      player.x = player.ledgeStartX + (player.ledgeTargetX - player.ledgeStartX) * (k * 0.6);
+      player.y = player.ledgeStartY + 10 * k;
+    } else if (p < 0.92) {
+      const k = (p - 0.25) / 0.67;
+      const ease = k * k * (3 - 2 * k);
+      player.x = player.ledgeStartX + (player.ledgeTargetX - player.ledgeStartX) * (0.6 + 0.4 * Math.min(1, k * 2));
+      player.y = (player.ledgeStartY + 10) + (player.ledgeTargetY - (player.ledgeStartY + 10)) * ease;
+    } else {
+      player.x = player.ledgeTargetX;
+      player.y = player.ledgeTargetY;
+    }
+
+    player.vx = 0;
+    player.vy = 0;
+    player.animT += dt * 8;
+
+    let hitGroundY = null;
+    
+    for (const poly of GROUND_POLYLINES) {
+      const gY = samplePolylineY(poly.pts, player.x);
+      if (gY !== null && player.y >= gY - 4 && gY > player.ledgeStartY + 10) {
+        if (hitGroundY === null || gY < hitGroundY) hitGroundY = gY;
+      }
+    }
+    
+    for (const m of activeMechanisms) {
+      if (m.hidden) continue;
+      const def = window.GAME_MECHANISMS_REGISTRY[m.type];
+      if ((m.solid ?? (def && def.solid) ?? (m.type && (m.type.includes('platform') || m.type.includes('button')))) && player.x + curHalfW * 0.8 >= m.x && player.x - curHalfW * 0.8 <= m.x + m.width) {
+        if (player.y >= m.y - 4 && m.y > player.ledgeStartY + 10) {
+          if (hitGroundY === null || m.y < hitGroundY) hitGroundY = m.y;
+        }
+      }
+    }
+
+    if (hitGroundY !== null) {
+      player.y = hitGroundY;
+      player.ledgeClimbingDown = false;
+      player.grounded = true;
+      player.vy = 0;
+      return;
+    }
+
+    if (p >= 1) {
+      player.x = player.ledgeTargetX;
+      player.y = player.ledgeTargetY;
+      player.ledgeClimbingDown = false;
+      player.grounded = false;
+      player.vy = 10;
+      player.fallStartY = player.y;
+    }
+    return;
+  }
+
+  // 每幀重設通用外掛控制鉤子，並先執行所有動作外掛更新
+  player.speedMultiplier = 1.0;
+  player.overrideVx = null;
+  player.overrideVy = null;
+  player.customAnimSpeed = null;
+  player.lockDefaultMove = false;
+  player.customHitbox = null;
+
+  updateCustomActions(dt, pluginCtx);
+
+  // 依據外掛更新後的狀態，同步刷新碰撞框尺寸
+  isLowStance = player.crawling || !!(player.customHitbox && player.customHitbox.isLow);
+  curHalfW = player.customHitbox?.halfW ?? (player.crawling ? 52 : 16);
+  curH = player.customHitbox?.height ?? getStanceHeight(isLowStance);
+
+  const c = getActiveCharStats();
+  player.scraping = false;
+  let currentZone = null;
+  for (const z of FRICTION_ZONES) {
+    if (player.x + curHalfW > z.x1 && player.x - curHalfW < z.x2 && player.y >= z.yMin && player.y <= z.yMax) {
+      currentZone = z;
+      break;
+    }
+  }
+
+  const headBlocked = isHeadBlockedToStand(player.x, player.y);
+
+  let activeLadder = null;
+  for (const lad of LADDERS) {
+    if (player.x >= lad.x1 - 15 && player.x <= lad.x2 + 15 && player.y <= lad.yBottom + 12 && player.y >= lad.yTop - 12) {
+      activeLadder = lad;
+      break;
+    }
+  }
+
+  const isAtLadderTopToClimbDown = activeLadder && (player.x >= activeLadder.x1 - 6 && player.x <= activeLadder.x2 + 6) && (player.y < activeLadder.yBottom - 10);
+  if (input.down && !player.lockDefaultMove && !isAtLadderTopToClimbDown && !player.crawling && !player.climbing && !player.ledgeClimbing && !player.ledgeClimbingDown) {
+    const ledgeDown = findClimbDownLedgePlatform();
+    if (ledgeDown) {
+      player.dir = ledgeDown.insideDir;
+      player.ledgeClimbingDown = true;
+      player.ledgeProgress = 0;
+      player.ledgeStartX = player.x;
+      player.ledgeStartY = ledgeDown.ledgeY;
+      player.ledgeGrabX = ledgeDown.grabX;
+      player.ledgeTargetX = ledgeDown.hangX;
+      player.ledgeTargetY = ledgeDown.targetY;
+      player.vx = 0;
+      player.vy = 0;
+      player.fallStartY = null;
+      return;
+    }
+  }
+
+  if (activeLadder && !player.crawling && !player.lockDefaultMove) {
+    if ((input.up && player.y > activeLadder.yTop + 4) || (input.down && player.y < activeLadder.yBottom - 4)) {
+      player.climbing = true;
+      player.crawling = false;
+      player.vx = 0;
+    }
+  }
+
+  player.slapping = input.slap && player.onFire;
+
+  let jumpConsumedByStandUp = false;
+  if (!player.climbing && !player.lockDefaultMove) {
+    if (wasJustPressed('crawl')) {
+      if (player.crawling) {
+        if (!headBlocked) player.crawling = false;
+      } else if (player.grounded) {
+        player.crawling = true;
+      }
+    } else if (player.crawling && wasJustPressed('jump')) {
+      if (!headBlocked) {
+        player.crawling = false;
+      }
+      jumpConsumedByStandUp = true;
+    }
+  }
+
+  let xKeyHandledByItem = false;
+  if (wasJustPressed('climb')) {
+    if (player.holdingItem) { const heldDef = window.GAME_ITEMS_REGISTRY[player.holdingItem.type]; if (heldDef && typeof heldDef.onUse === 'function') { if (!player.customArmPose) pluginCtx.triggerArmPose('throw', 0.32); heldDef.onUse(player, player.holdingItem, pluginCtx); xKeyHandledByItem = true; } }
+    else if (nearestInteractableItem) { if (!player.customArmPose) pluginCtx.triggerArmPose('pickup', 0.25); nearestInteractableItem.def.onInteract(player, nearestInteractableItem.item, pluginCtx); xKeyHandledByItem = true; }
+  }
+
+  player.raisingHands = false;
+  if (input.up && !player.lockDefaultMove && !activeLadder && !player.crawling && !player.climbing) {
+    const ledgeUp = findClimbableLedgePlatform();
+    if (ledgeUp) {
+      player.raisingHands = true;
+      player.ledgeClimbing = true;
+      player.ledgeProgress = 0;
+      player.ledgeStartX = player.x;
+      player.ledgeStartY = player.y;
+      player.ledgeGrabX = ledgeUp.grabX;
+      player.ledgeTargetX = ledgeUp.targetX;
+      player.ledgeTargetY = ledgeUp.targetY;
+      player.ledgeForceCrawl = !!ledgeUp.forceCrawl;
+      player.vx = 0;
+      player.vy = 0;
+      player.fallStartY = null;
+      return;
+    }
+  }
+
+  if (player.crawling) {
+    player.stanceT = Math.min(1, player.stanceT + dt * 6);
+  } else {
+    player.stanceT = Math.max(0, player.stanceT - dt * 6);
+  }
+  if (player.landSquatTimer > 0) {
+    player.landSquatTimer = Math.max(0, player.landSquatTimer - dt);
+  }
+
+  const curMoveSpeed = (player.crawling ? c.speed * 26 : c.speed * 52) * (player.speedMultiplier || 1.0);
+  if (player.overrideVx !== null && player.overrideVx !== undefined) {
+    player.vx = player.overrideVx;
+  } else if (player.slapping) {
+    player.vx *= 0.7;
+  } else if (player.climbing && activeLadder) {
+    const climbSpd = c.speed * 33.8, topCX = activeLadder.topCenterX ?? (activeLadder.x1 + activeLadder.x2) * 0.5, botCX = activeLadder.botCenterX ?? (activeLadder.x1 + activeLadder.x2) * 0.5; player.vy = 0;
+    player.x += ((botCX + (1 - Math.max(0, Math.min(1, (player.y - activeLadder.yTop) / (activeLadder.yBottom - activeLadder.yTop)))) * (topCX - botCX)) - player.x) * 10 * dt;
+    if (input.up || input.jump) player.y -= climbSpd * dt; if (input.down) player.y += climbSpd * dt;
+    
+    // 如果在頂部附近按了左右，解除攀爬，只對齊 Y 不推 X
+    if (input.left || input.right) { 
+      if (player.y <= activeLadder.yTop + 26) { 
+        player.y = activeLadder.yTop; 
+        player.grounded = true; 
+      } 
+      player.climbing = false; 
+    }
+    
+    // 到達絕對頂部或底部，解除攀爬，不推 X
+    if (player.y <= activeLadder.yTop) { 
+      player.y = activeLadder.yTop; 
+      player.vy = 0; 
+      player.climbing = false; 
+      player.grounded = true; 
+    } else if (player.y >= activeLadder.yBottom) { 
+      player.y = activeLadder.yBottom; 
+      player.vy = 0; 
+      player.climbing = false; 
+      player.grounded = true; 
+    }
+  } else if (!player.lockDefaultMove) {
+
+    player.climbing = false;
+    const wantDir = (input.left && !input.right) ? -1 : ((input.right && !input.left) ? 1 : 0);
+
+    // 若正在執行 0.6 秒原地轉身動作
+    if (player.turning) {
+      player.vx = 0; // 鎖定水平速度為 0，確保座標完全不偏移
+      player.turnTimer += dt;
+      // 轉身過半 (0.3秒) 時切換邏輯面向，但需等到滿 0.6 秒才結束轉身並允許移動
+      if (player.turnTimer >= player.turnDuration * 0.5) {
+        player.dir = player.turnToDir;
+      }
+      if (player.turnTimer >= player.turnDuration || !player.grounded) {
+        player.dir = player.turnToDir;
+        player.turning = false;
+        player.turnTimer = 0;
+      }
+    } else if (player.grounded && wantDir !== 0 && wantDir !== player.dir) {
+      // 在地面按下與當前朝向相反的方向鍵：啟動 0.6 秒原地轉身，不直接移動！
+      player.turning = true;
+      player.turnTimer = 0;
+      player.turnDuration = 0.2;
+      player.turnFromDir = player.dir;
+      player.turnToDir = wantDir;
+      player.vx = 0;
+    } else {
+      // 方向一致（或轉身已結束）：正常向前走
+      if (wantDir === -1) { player.vx = -curMoveSpeed; player.dir = -1; }
+      else if (wantDir === 1) { player.vx = curMoveSpeed; player.dir = 1; }
+      else { player.vx = 0; }
+    }
+
+    if (wasJustPressed('jump') && !jumpConsumedByStandUp && player.grounded && !player.crawling) {
+      if (player.turning) {
+        player.dir = player.turnToDir;
+        player.turning = false;
+        player.turnTimer = 0;
+      }
+      player.vy = -474;
+      player.grounded = false;
+    }
+  } else {
+    player.turning = false;
+    player.turnTimer = 0;
+  }
+
+  if (player.overrideVy !== null && player.overrideVy !== undefined) {
+    player.vy = player.overrideVy;
+  }
+
+  if (!player.climbing) {
+    const wasGroundedBefore = player.grounded;
+    const prevY = player.y;
+    player.vy += 1450 * dt;
+    player.y += player.vy * dt;
+    player.grounded = false;
+
+    if (player.vy <= 0) {
+      player.fallStartY = player.y;
+    } else if (wasGroundedBefore || player.fallStartY === null) {
+      player.fallStartY = prevY;
+    }
+
+    for (const poly of GROUND_POLYLINES) {
+      const gY = samplePolylineY(poly.pts, player.x);
+      if (gY !== null && prevY <= gY + 28 && player.y >= gY - 4 && player.vy >= 0) {
+        player.y = gY;
+        player.vy = 0;
+        player.grounded = true;
+        break;
+      }
+    }
+    if (!player.grounded) {
+      for (const m of activeMechanisms) {
+        if (m.hidden) continue;
+        const def = window.GAME_MECHANISMS_REGISTRY[m.type];
+      if ((m.solid ?? (def && def.solid) ?? (m.type && (m.type.includes('platform') || m.type.includes('button')))) && player.x + curHalfW * 0.8 >= m.x && player.x - curHalfW * 0.8 <= m.x + m.width) {
+          if (prevY <= (m.prevY ?? m.y) + 28 && player.y >= m.y - 6 && player.vy >= 0) {
+            player.y = m.y;
+            player.vy = 0;
+            player.grounded = true;
+            if (m.dx) player.x = Math.max(35, Math.min(WORLD_W - 35, player.x + m.dx));
+            break;
+          }
+        }
+      }
+    }
+
+    if (player.grounded && player.fallStartY !== null) {
+      const fallDist = player.y - player.fallStartY;
+      player.fallStartY = player.y;
+
+      if (fallDist > 40 && !isLowStance) {
+        player.landSquatTimer = 0.3;
+      }
+
+      let fallDamage = 0;
+      if (fallDist > PHYS_STAND_H * 2.5) {
+        fallDamage = 100;
+      } else if (fallDist > PHYS_STAND_H * 2.0) {
+        fallDamage = 50;
+      } else if (fallDist > PHYS_STAND_H * 1.5) {
+        fallDamage = 25;
+      }
+
+      if (fallDamage > 0) {
+        player.hp = Math.max(0, player.hp - fallDamage);
+        addSparks(player.x, player.y - 6, true);
+        if (player.hp <= 0) {
+          player.deathCause = 'fall';
+          player.onFire = false;
+        }
+      }
+    }
+  } else {
+    player.fallStartY = player.y;
+  }
+
+  let nextX = player.x + player.vx * dt;
+  let blockedHoriz = false;
+
+  const pTop = player.y - curH + 4;
+  const pBot = player.y - 4;
+  
+  // 1. 處理靜態牆壁碰撞
+  for (const w of SOLID_WALLS) {
+    if (!shouldWallBlockPlayer(w, pTop, pBot)) continue;
+
+    const wallX = w.x !== undefined ? w.x : ((w.x1 + w.x2) * 0.5);
+
+    if (player.x <= wallX) {
+      if (nextX + curHalfW > wallX) {
+        nextX = wallX - curHalfW;
+        blockedHoriz = true;
+      }
+    } else {
+      if (nextX - curHalfW < wallX) {
+        nextX = wallX + curHalfW;
+        blockedHoriz = true;
+      }
+    }
+  }
+
+  // 2. 處理動態機關碰撞
+  for (const m of activeMechanisms) {
+    if (m.hidden) continue;
+    const def = window.GAME_MECHANISMS_REGISTRY[m.type];
+    const isSolid = m.solid ?? (def && def.solid);
+    
+    if (isSolid) {
+      if (pBot > m.y && pTop < m.y + m.height) {
+        const mCenterX = m.x + m.width * 0.5;
+        
+        if (player.x <= mCenterX) {
+          if (nextX + curHalfW > m.x) {
+            nextX = m.x - curHalfW;
+            blockedHoriz = true;
+          }
+        } else {
+          if (nextX - curHalfW < m.x + m.width) {
+            nextX = m.x + m.width + curHalfW;
+            blockedHoriz = true;
+          }
+        }
+      }
+    }
+  }
+
+  // 3. 處理減速區 (如天花板壓頂區) 的邊緣阻擋
+  for (const z of FRICTION_ZONES) {
+    if (z.requireCrawl && player.y >= z.yMin && player.y <= z.yMax) {
+      const standsIntoRoof = (z.blockBot === undefined) || (player.y - PHYS_STAND_H < z.blockBot);
+      if (standsIntoRoof && !isLowStance) {
+        let blockedByZone = false; // 💡 使用專屬變數，避免被步驟 1、2 的普通撞牆干擾
+        if (player.x <= z.x1) {
+          if (nextX + curHalfW > z.x1) {
+            nextX = z.x1 - curHalfW;
+            blockedHoriz = true;
+            blockedByZone = true;
+          }
+        } else if (player.x >= z.x2) {
+          if (nextX - curHalfW < z.x2) {
+            nextX = z.x2 + curHalfW;
+            blockedHoriz = true;
+            blockedByZone = true;
+          }
+        }
+        // 💡 只有確實撞上壓頂天花板的邊緣時，才擦出火花
+        if (blockedByZone) {
+          addSparks(player.x + player.dir * 18, (z.blockBot ?? (player.y - PHYS_STAND_H + 20)), z.intenseSparks);
+          break;
+        }
+      }
+    }
+  }
+
+
+  player.x = Math.max(35, Math.min(WORLD_W - 35, nextX));
+
+  let frictionMul = 0, intenseSparks = false;
+  if (currentZone) { frictionMul = isLowStance ? currentZone.crawlFriction : currentZone.standFriction; intenseSparks = currentZone.intenseSparks; if (frictionMul > 0) player.scraping = true; }
+  const mFact = (Math.abs(player.vx) + Math.abs(player.vy) * 0.5) / 200;
+  if (player.scraping && mFact > 0.05) { player.heat = Math.min(player.maxHeat, player.heat + frictionMul * 26 * Math.max(0.45, mFact) * dt); if (Math.random() < (intenseSparks ? 0.85 : 0.55)) addSparks(player.x, player.y - curH + 8, intenseSparks); } else if (!player.onFire) player.heat = Math.max(0, player.heat - 6 * dt);
+  if (player.heat >= player.maxHeat && !player.onFire) player.onFire = true;
+  if (player.onFire) { player.hp = Math.max(0, player.hp - (60 / c.resist) * dt); if (Math.random() < 0.45) addSmoke(player.x, player.y - curH - 10, false); if (Math.random() < 0.35) addSparks(player.x, player.y - curH - 6, true); }
+  if (player.slapping) { player.slapProgress += dt / c.extinguish; player.heat = Math.max(0, player.maxHeat * (1 - player.slapProgress)); if (Math.random() < 0.85) addSmoke(player.x, player.y - curH + 6, true); if (player.slapProgress >= 1) { player.onFire = false; player.heat = 0; player.slapProgress = 0; } } else { player.slapProgress = player.onFire ? Math.max(0, player.slapProgress - 0.4 * dt) : 0; }
+  if (player.x >= (GOAL_CONDITION.xMin ?? -9999) && player.x <= (GOAL_CONDITION.xMax ?? 245) && player.y >= (GOAL_CONDITION.yMin ?? -9999) && player.y <= (GOAL_CONDITION.yMax ?? 575) && !player.dead && !player.dying) { player.won = true; player.onFire = false; }
+  const animRate = player.customAnimSpeed ?? (Math.abs(player.vx) > 5 || player.climbing ? (player.crawling ? 6.5 : 11) : 2);
+  player.animT += dt * animRate;
+}
+
+// ================= 繪圖引擎 =================
+function drawPonytail3D(r, bh, faceX, spinAngle) {
+  const hy = -(30 + bh) - r - 4, tailDir = -faceX; ctx.save(); ctx.translate(tailDir * (r * 0.72), hy - r * 0.5); ctx.rotate(Math.sin(spinAngle * 2) * 0.15); ctx.fillStyle = '#c92a2a'; ctx.strokeStyle = '#080605'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo((tailDir >= 0 ? 1 : -1) * 20, -20, (tailDir >= 0 ? 1 : -1) * 32, -4); ctx.quadraticCurveTo((tailDir >= 0 ? 1 : -1) * 40, 8, (tailDir >= 0 ? 1 : -1) * 46, -6); ctx.quadraticCurveTo((tailDir >= 0 ? 1 : -1) * 30, 18, 0, 10); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+}
+// --- 進階體態與拳腳繪製輔助函式 ---
+function drawTaperedSegment(ctx, x1, y1, x2, y2, r1, r2, fillColor, strokeColor, lineW = 2.4) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  ctx.save();
+  ctx.fillStyle = fillColor;
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = lineW;
+  ctx.beginPath();
+  if (dist < 0.5) {
+    ctx.arc(x1, y1, Math.max(r1, r2), 0, Math.PI * 2);
+  } else {
+    const angle = Math.atan2(dy, dx);
+    ctx.arc(x1, y1, r1, angle + Math.PI * 0.5, angle - Math.PI * 0.5, false);
+    ctx.arc(x2, y2, r2, angle - Math.PI * 0.5, angle + Math.PI * 0.5, false);
+    ctx.closePath();
+  }
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFist(ctx, x, y, radius, dir, fillColor, strokeColor) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = fillColor;
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, radius * 1.08, radius * 0.95, dir * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(dir * radius * 0.15, radius * 0.08, radius * 0.45, -Math.PI * 0.4, Math.PI * 0.65, false);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFoot(ctx, x, y, rAnkle, dir, fillColor, strokeColor) {
+  ctx.save();
+  ctx.translate(x + dir * (rAnkle * 0.65), y - rAnkle * 0.2);
+  ctx.fillStyle = fillColor;
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rAnkle * 1.55, rAnkle * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFullLimb(ctx, x1, y1, jx, jy, x2, y2, lw, isArm, dir, fillColor, strokeColor) {
+  const rRoot = isArm ? lw * 0.72 : lw * 1.35; // 大腿根部大幅加粗，與身體無縫接合
+  const rMid  = isArm ? lw * 0.50 : lw * 0.65; // 大腿到膝蓋平滑過渡
+  const rEnd  = isArm ? lw * 0.36 : lw * 0.40;
+  drawTaperedSegment(ctx, x1, y1, jx, jy, rRoot, rMid, fillColor, strokeColor);
+  drawTaperedSegment(ctx, jx, jy, x2, y2, rMid, rEnd, fillColor, strokeColor);
+  if (isArm) {
+    drawFist(ctx, x2, y2, lw * 0.62, dir, fillColor, strokeColor);
+  } else {
+    drawFoot(ctx, x2, y2, lw * 0.55, dir, fillColor, strokeColor);
+  }
+}
+
+function drawShapedTorso(ctx, cx, cy, bw, bh, tiltAngle, fillColor, strokeColor) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(tiltAngle);
+  const topW = bw * 0.35, waistW = bw * 0.38, hipW = bw * 0.45, halfH = bh * 0.5; // 身體改為上窄下微寬的梯形，收縮原本過寬的底部
+  ctx.fillStyle = fillColor;
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  ctx.moveTo(-topW, -halfH + 4);
+  ctx.quadraticCurveTo(0, -halfH - 3, topW, -halfH + 4);
+  ctx.quadraticCurveTo(waistW, 0, hipW, halfH - 4);
+  ctx.quadraticCurveTo(0, halfH + 3, -hipW, halfH - 4);
+  ctx.quadraticCurveTo(-waistW, 0, -topW, -halfH + 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// 選角畫面專屬：每個角色不旋轉，擺出專屬帥氣待機姿勢 + 確認後播放必殺出擊動作！
+function drawSpinningCharacter(cx, cy, charData, scale, spinAngle) {
+  const c = charData.appearance || {};
+  const r = c.headRadius || 25, bw = c.bodyWidth || 18, bh = (c.bodyHeight || 44) * 0.75, lw = (c.limbWidth || 6.5) * 0.6; // 身體縮短四分之一，手腳變細
+  const bodyCol = c.bodyColor || '#d99b38', limbCol = '#2b211e', outCol = '#080605';
+
+  // 判斷目前這張卡片是否為「正中央選取中」的角色
+  const isSelected = (loadedCharacters[selectedCharIdx] === charData);
+  const isConfirming = isSelected && charConfirmAnim.active;
+  const p = isConfirming ? Math.min(1, charConfirmAnim.timer / charConfirmAnim.duration) : 0;
+  const breath = isSelected ? Math.sin(performance.now() * 0.0055) * 2.5 : 0;
+
+  // 識別角色類型 (peter / rose / bb)
+  const key = String(charData.folder || charData.name || '').toLowerCase();
+  let styleType = 'peter';
+  if (key.includes('rose') || c.hasPonytail) styleType = 'rose';
+  else if (key.includes('bb') || bw >= 22) styleType = 'bb';
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+
+  // 底部陰影与選中氣場光環
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+  ctx.beginPath();
+  ctx.ellipse(0, 4, 36, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (isSelected) {
+    const auraR = isConfirming ? 42 + p * 38 : 34 + Math.sin(performance.now() * 0.008) * 4;
+    const auraGrad = ctx.createRadialGradient(0, -bh * 0.7, 4, 0, -bh * 0.7, auraR);
+    auraGrad.addColorStop(0, isConfirming ? 'rgba(255, 230, 100, 0.65)' : 'rgba(255, 180, 60, 0.25)');
+    auraGrad.addColorStop(1, 'rgba(255, 120, 20, 0)');
+    ctx.fillStyle = auraGrad;
+    ctx.beginPath();
+    ctx.arc(0, -bh * 0.7, auraR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const d = 1; // 帥氣正面偏右視角
+  let hipX = 0, hipY = -30 + breath * 0.5, torsoTilt = 0.08;
+  let lKneeX = -10, lKneeY = -15, lFootX = -14, lFootY = -2;
+  let rKneeX = 12,  rKneeY = -15, rFootX = 15,  rFootY = -2;
+  let bElbX = -16, bElbY = -50, bHandX = -8,  bHandY = -62;
+  let fElbX = 14,  fElbY = -48, fHandX = 24,  fHandY = -58;
+  let headOffX = 3, headOffY = 0;
+
+  if (styleType === 'peter') {
+    // 【Peter 專屬姿勢】：熱血格鬥家備戰架勢 -> 確認時轟出「烈焰閃光直拳」！
+    if (!isConfirming) {
+      hipY = -28 + breath * 0.6;
+      torsoTilt = 0.14;
+      lKneeX = -12; lKneeY = -14; lFootX = -18; lFootY = -2;
+      rKneeX = 14;  rKneeY = -14; rFootX = 18;  rFootY = -2;
+      const guardBob = breath * 0.9;
+      bElbX = -14; bElbY = -52 + guardBob; bHandX = 6;  bHandY = -64 + guardBob;
+      fElbX = 14;  fElbY = -48 + guardBob; fHandX = 28; fHandY = -60 + guardBob;
+    } else {
+      // 確認後：蓄力後仰 -> 猛烈跨步重拳出擊
+      const windup = p < 0.28 ? (p / 0.28) : 1 - Math.min(1, (p - 0.28) / 0.22);
+      const strike = p >= 0.28 ? Math.min(1, (p - 0.28) / 0.25) : 0;
+      hipX = -windup * 8 + strike * 12;
+      hipY = -26;
+      torsoTilt = -windup * 0.18 + strike * 0.34;
+      lKneeX = -14; lKneeY = -14; lFootX = -22; lFootY = -2;
+      rKneeX = 16 + strike * 8; rKneeY = -14; rFootX = 22 + strike * 10; rFootY = -2;
+      bElbX = hipX - 18; bElbY = -52; bHandX = hipX - 24; bHandY = -44;
+      fElbX = hipX + 18 + strike * 12; fElbY = -58;
+      fHandX = hipX + 14 - windup * 16 + strike * 38; fHandY = -60;
+    }
+  } else if (styleType === 'rose') {
+    // 【Rose 專屬姿勢】：敏捷女武神單手叉腰自信站姿 -> 確認時使出「凌空迴旋踢」！
+    if (!isConfirming) {
+      hipY = -31 + breath * 0.5;
+      torsoTilt = -0.06;
+      lKneeX = -8;  lKneeY = -15; lFootX = -11; lFootY = -2;
+      rKneeX = 12;  rKneeY = -16; rFootX = 16;  rFootY = -2;
+      // 後手叉腰、前手帥氣微揚
+      bElbX = -17; bElbY = -52; bHandX = -8;  bHandY = -36;
+      fElbX = 14;  fElbY = -50 + breath; fHandX = 25; fHandY = -68 + breath;
+    } else {
+      // 確認後：輕盈躍起 + 高角度凌空飛踢
+      const jumpArc = Math.sin(p * Math.PI);
+      const kickExt = p >= 0.2 ? Math.min(1, (p - 0.2) / 0.35) : 0;
+      hipY = -30 - jumpArc * 26;
+      torsoTilt = -0.28 * kickExt;
+      lKneeX = -8; lKneeY = hipY + 14; lFootX = -12; lFootY = hipY + 26;
+      rKneeX = 14 + kickExt * 8; rKneeY = hipY - 6 * kickExt;
+      rFootX = 18 + kickExt * 26; rFootY = hipY - 22 * kickExt;
+      bElbX = -18; bElbY = hipY - 22; bHandX = -28; bHandY = hipY - 12;
+      fElbX = 12;  fElbY = hipY - 26; fHandX = 24;  fHandY = hipY - 38;
+    }
+  } else {
+    // 【BB 專屬姿勢】：重裝霸氣抱胸/雙臂展肌馬步 -> 確認時「霸氣震地咆哮爆氣」！
+    if (!isConfirming) {
+      hipY = -27 + breath * 0.4;
+      torsoTilt = 0.04;
+      lKneeX = -15; lKneeY = -14; lFootX = -20; lFootY = -2;
+      rKneeX = 15;  rKneeY = -14; rFootX = 20;  rFootY = -2;
+      // 雙手霸氣交疊胸前 / 展現二頭肌
+      bElbX = -20; bElbY = -48 + breath * 0.6; bHandX = -6; bHandY = -56 + breath * 0.6;
+      fElbX = 20;  fElbY = -48 + breath * 0.6; fHandX = 8;  fHandY = -56 + breath * 0.6;
+    } else {
+      // 確認後：微蹲蓄力 -> 雙臂向兩側猛力振開爆發出金色氣浪
+      const power = p < 0.3 ? -(p / 0.3) * 0.4 : Math.min(1, (p - 0.3) / 0.3);
+      hipY = -25 - Math.max(0, power) * 4;
+      torsoTilt = -Math.max(0, power) * 0.08;
+      lKneeX = -17; lKneeY = -13; lFootX = -22; lFootY = -2;
+      rKneeX = 17;  rKneeY = -13; rFootX = 22;  rFootY = -2;
+      bElbX = -20 - power * 8; bElbY = -52; bHandX = -16 - power * 18; bHandY = -68 - power * 8;
+      fElbX =  20 + power * 8; fElbY = -52; fHandX =  16 + power * 18; fHandY = -68 - power * 8;
+      headOffY = -Math.max(0, power) * 3;
+    }
+  }
+
+  const shX = hipX + Math.sin(torsoTilt) * bh;
+  const shY = hipY - Math.cos(torsoTilt) * bh;
+  const hx = shX + headOffX;
+  const hy = shY - r + 6 + headOffY;
+
+  // 馬尾 (繪製於腦後)
+  if (c.hasPonytail) {
+    ctx.save();
+    ctx.translate(hx - r * 0.72, hy - r * 0.5);
+    ctx.rotate(Math.sin(performance.now() * 0.006) * 0.16 + (isConfirming ? 0.35 : 0));
+    ctx.fillStyle = '#c92a2a';
+    ctx.strokeStyle = outCol;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(-20, -20, -32, -4);
+    ctx.quadraticCurveTo(-40, 8, -46, -6);
+    ctx.quadraticCurveTo(-30, 18, 0, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 1. 後側手臂与雙腿
+  drawFullLimb(ctx, shX - bw * 0.35, shY + 6, bElbX, bElbY, bHandX, bHandY, lw, true, d, limbCol, outCol);
+  drawFullLimb(ctx, hipX - 4, hipY, lKneeX, lKneeY, lFootX, lFootY, lw, false, -1, limbCol, outCol);
+  drawFullLimb(ctx, hipX + 4, hipY, rKneeX, rKneeY, rFootX, rFootY, lw, false,  1, limbCol, outCol);
+
+  // 2. 流線型腰身軀幹
+  drawShapedTorso(ctx, (hipX + shX) * 0.5, (hipY + shY) * 0.5, bw, bh, torsoTilt, bodyCol, outCol);
+
+  // 3. 前側主手臂
+  drawFullLimb(ctx, shX + bw * 0.35, shY + 6, fElbX, fElbY, fHandX, fHandY, lw, true, d, limbCol, outCol);
+
+  // 4. 頭部與自信眼神
+  ctx.save();
+  ctx.translate(hx, hy);
+  const hG = ctx.createRadialGradient(-r * 0.25, -r * 0.25, r * 0.15, 0, 0, r);
+  hG.addColorStop(0, c.headColor || '#e03131');
+  hG.addColorStop(0.75, '#b82020');
+  hG.addColorStop(1, '#7a1212');
+  ctx.fillStyle = hG;
+  ctx.strokeStyle = outCol;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 雙眼
+  const ex = r * 0.32, ey = -r * 0.05, er = r * 0.22;
+  ctx.fillStyle = outCol;
+  ctx.beginPath();
+  ctx.arc(ex - r * 0.24, ey, er * 0.92, 0, Math.PI * 2);
+  ctx.arc(ex + r * 0.18, ey, er * 1.05, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 選中時加上帥氣劍眉，展現角色氣勢
+  if (isSelected) {
+    ctx.strokeStyle = outCol;
+    ctx.lineWidth = 2.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ex - r * 0.42, ey - r * 0.32);
+    ctx.lineTo(ex - r * 0.08, ey - r * 0.20);
+    ctx.moveTo(ex + r * 0.38, ey - r * 0.34);
+    ctx.lineTo(ex + r * 0.04, ey - r * 0.20);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 5. 確認選角時的專屬華麗特效 (拳風震波 / 旋風殘影 / 霸氣光環)
+  if (isConfirming && p > 0.25) {
+    ctx.save();
+    const effAlpha = Math.max(0, 1 - (p - 0.25) / 0.75);
+    if (styleType === 'peter') {
+      ctx.strokeStyle = `rgba(255, 220, 90, ${effAlpha})`;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(fHandX + 6, fHandY, 10 + (p - 0.25) * 42, -Math.PI * 0.45, Math.PI * 0.45);
+      ctx.stroke();
+    } else if (styleType === 'rose') {
+      ctx.strokeStyle = `rgba(126, 247, 200, ${effAlpha})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, hipY, 38, -Math.PI * 0.65, Math.PI * 0.15);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = `rgba(255, 160, 50, ${effAlpha})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, -bh * 0.6, 24 + (p - 0.25) * 55, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function drawMenuCornerPrompts(prompts) {
+  ctx.save(); let rightEdge = canvas.width - 24; const centerY = canvas.height - 32;
+  for (let i = prompts.length - 1; i >= 0; i--) {
+    const p = prompts[i]; ctx.font = '900 20px "Microsoft JhengHei"'; const textW = ctx.measureText(p.label).width; const pillW = 36 + 10 + textW + 24; const pillX = rightEdge - pillW;
+    ctx.fillStyle = 'rgba(16, 13, 22, 0.92)'; ctx.strokeStyle = '#5c5268'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(pillX, centerY - 22, pillW, 44, 22); ctx.fill(); ctx.stroke();
+    const circleX = pillX + 24; ctx.fillStyle = '#181620'; ctx.strokeStyle = p.color; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(circleX, centerY, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = p.color; ctx.font = '900 17px "Segoe UI", "Arial Black", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.key, circleX, centerY + 1);
+    ctx.fillStyle = '#f2ece1'; ctx.font = '900 20px "Microsoft JhengHei"'; ctx.textAlign = 'left'; ctx.fillText(p.label, circleX + 20, centerY + 1);
+    rightEdge = pillX - 12;
+  } ctx.restore();
+}
+function drawLockedStageThumbnail(iX, iY, iW, iH, isSel) {
+  ctx.save(); const bgGrad = ctx.createLinearGradient(iX, iY, iX, iY + iH); bgGrad.addColorStop(0, '#14121a'); bgGrad.addColorStop(1, '#08070b'); ctx.fillStyle = bgGrad; ctx.fillRect(iX, iY, iW, iH);
+  ctx.save(); ctx.beginPath(); ctx.rect(iX, iY, iW, iH); ctx.clip(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'; ctx.lineWidth = 10; for (let x = iX - iH; x < iX + iW + iH; x += 24) { ctx.beginPath(); ctx.moveTo(x, iY); ctx.lineTo(x + iH, iY + iH); ctx.stroke(); } ctx.restore();
+  const cx = iX + iW / 2, cy = iY + iH / 2 - 8, glow = ctx.createRadialGradient(cx, cy, 4, cx, cy, 56); glow.addColorStop(0, isSel ? 'rgba(243, 156, 18, 0.28)' : 'rgba(140, 130, 150, 0.15)'); glow.addColorStop(1, 'rgba(0, 0, 0, 0)'); ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 56, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = isSel ? '#d4ac0d' : '#7f8c8d'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(cx, cy - 12, 18, Math.PI, 0, false); ctx.lineTo(cx + 18, cy + 4); ctx.moveTo(cx - 18, cy - 12); ctx.lineTo(cx - 18, cy + 4); ctx.stroke();
+  const bodyW = 52, bodyH = 42, bodyGrad = ctx.createLinearGradient(cx - bodyW / 2, cy - 2, cx + bodyW / 2, cy + bodyH); if (isSel) { bodyGrad.addColorStop(0, '#f5b041'); bodyGrad.addColorStop(0.5, '#d68910'); bodyGrad.addColorStop(1, '#9c640c'); } else { bodyGrad.addColorStop(0, '#95a5a6'); bodyGrad.addColorStop(0.5, '#7f8c8d'); bodyGrad.addColorStop(1, '#566573'); } ctx.fillStyle = bodyGrad; ctx.strokeStyle = '#1c1824'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(cx - bodyW / 2, cy - 2, bodyW, bodyH, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#14121a'; ctx.beginPath(); ctx.arc(cx, cy + 14, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx - 3, cy + 16); ctx.lineTo(cx + 3, cy + 16); ctx.lineTo(cx + 4.5, cy + 29); ctx.lineTo(cx - 4.5, cy + 29); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = isSel ? '#f5b041' : '#8e8296'; ctx.font = '900 15px "Microsoft JhengHei"'; ctx.textAlign = 'center'; ctx.fillText('未開放 (LOCKED)', cx, iY + iH - 12); ctx.restore();
+}
+function drawTitleLoadingScreen() {
+  ctx.fillStyle = '#080605';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 1. 繪製 image/main.png (1672x941)：上下完美貼齊視窗高度 (720)，左右維持比例自動裁切超出部分
+  if (isMainCoverReady && mainCoverImg.complete && mainCoverImg.naturalWidth > 0) {
+    const imgW = mainCoverImg.naturalWidth;
+    const imgH = mainCoverImg.naturalHeight;
+    const scale = canvas.height / imgH; // 以高度為基準縮放
+    const drawW = imgW * scale;
+    const drawH = canvas.height;
+    const drawX = (canvas.width - drawW) * 0.5; // 水平置中，左右超出去自然裁切
+    ctx.drawImage(mainCoverImg, drawX, 0, drawW, drawH);
+  }
+
+  // 2. 底部漸層暗角遮罩，確保進度條與按鈕在任何封面上都清晰可見
+  const grad = ctx.createLinearGradient(0, canvas.height - 170, 0, canvas.height);
+  grad.addColorStop(0, 'rgba(8, 6, 10, 0)');
+  grad.addColorStop(0.45, 'rgba(8, 6, 10, 0.72)');
+  grad.addColorStop(1, 'rgba(8, 6, 10, 0.95)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, canvas.height - 170, canvas.width, 170);
+
+  const cx = canvas.width / 2;
+  const bottomY = canvas.height - 54;
+
+  // 3. 尚未載入完畢：顯示動態讀取進度條與百分比
+  if (!isGameBootComplete) {
+    const barW = 560, barH = 24;
+    const barX = cx - barW / 2, barY = bottomY - barH / 2;
+    const pct = Math.min(100, Math.round(gameBootVisualProg * 100));
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffca6b';
+    ctx.font = 'bold 18px "Microsoft JhengHei"';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 6;
+    ctx.fillText(`${gameBootStepText} (${pct}%)`, cx, barY - 14);
+    ctx.shadowBlur = 0;
+
+    // 進度條外框
+    ctx.fillStyle = 'rgba(12, 10, 16, 0.92)';
+    ctx.strokeStyle = '#6e5544';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // 進度條填充
+    const fillW = Math.max(14, (barW - 8) * Math.max(0.02, Math.min(1, gameBootVisualProg)));
+    const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    barGrad.addColorStop(0, '#f39c12');
+    barGrad.addColorStop(0.6, '#ffca6b');
+    barGrad.addColorStop(1, '#2ecc71');
+    ctx.fillStyle = barGrad;
+    ctx.beginPath();
+    ctx.roundRect(barX + 4, barY + 4, fillW, barH - 8, 8);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    // 4. 進度 100% 載入完畢：顯示「(A) 進入遊戲」與「(X) 操作說明」雙按鈕
+    const pulse = 0.85 + Math.sin(performance.now() * 0.006) * 0.15;
+    const btnW = 250, btnH = 56, gap = 28;
+    const totalW = btnW * 2 + gap;
+    const startX = cx - totalW / 2;
+    const btnY = bottomY - btnH / 2;
+
+    const buttons = [
+      { key: 'A', label: '進入遊戲', color: '#2ecc71', border: '#239b56', glow: `rgba(46, 204, 113, ${0.6 * pulse})`, x: startX },
+      { key: 'X', label: '操作說明', color: '#3498db', border: '#2874a6', glow: `rgba(52, 152, 219, ${0.5 * pulse})`, x: startX + btnW + gap }
+    ];
+
+    for (const b of buttons) {
+      ctx.save();
+      ctx.shadowColor = b.glow;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = 'rgba(20, 18, 28, 0.95)';
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(b.x, btnY, btnW, btnH, 28);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // 圓形按鍵圖示 (與介面按鈕同色系)
+      const circleX = b.x + 42;
+      const cGrad = ctx.createRadialGradient(circleX - 4, bottomY - 5, 2, circleX, bottomY, 18);
+      cGrad.addColorStop(0, '#383542');
+      cGrad.addColorStop(0.65, '#191720');
+      cGrad.addColorStop(1, '#0d0c12');
+      ctx.fillStyle = cGrad;
+      ctx.strokeStyle = b.border;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(circleX, bottomY, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = b.color;
+      ctx.font = '900 21px "Segoe UI", "Arial Black", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(b.key, circleX, bottomY + 1);
+
+      // 按鈕文字
+      ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
+      ctx.font = '900 24px "Microsoft JhengHei"';
+      ctx.textAlign = 'left';
+      ctx.fillText(b.label, circleX + 28, bottomY + 1);
+      ctx.restore();
+    }
+  }
+}
+
+// 繪製與操控介面一致的彩色圓形帶字母按鈕圖示 (X/Y/A/B)
+function drawXboxBtnIcon(cx, cy, radius, keyChar) {
+  const styles = {
+    Y: { color: '#f1c40f', border: '#b7950b', glow: 'rgba(241, 196, 15, 0.45)' },
+    X: { color: '#3498db', border: '#2874a6', glow: 'rgba(52, 152, 219, 0.45)' },
+    B: { color: '#e74c3c', border: '#b03a2e', glow: 'rgba(231, 76, 60, 0.45)' },
+    A: { color: '#2ecc71', border: '#239b56', glow: 'rgba(46, 204, 113, 0.45)' }
+  };
+  const st = styles[keyChar] || styles.A;
+  ctx.save();
+  const grad = ctx.createRadialGradient(cx - radius * 0.28, cy - radius * 0.28, radius * 0.1, cx, cy, radius);
+  grad.addColorStop(0, '#383542');
+  grad.addColorStop(0.65, '#191720');
+  grad.addColorStop(1, '#0d0c12');
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = st.border;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = st.color;
+  ctx.shadowColor = st.glow;
+  ctx.shadowBlur = 8;
+  ctx.font = `900 ${Math.round(radius * 1.15)}px "Segoe UI", "Arial Black", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(keyChar, cx, cy + 1);
+  ctx.restore();
+}
+
+// 繪製方向鍵方塊圖示 (⬆️⬇️⬅️➡️)
+function drawDpadDirIcon(cx, cy, size, arrowSymbol) {
+  ctx.save();
+  ctx.fillStyle = '#141218';
+  ctx.strokeStyle = '#524966';
+  ctx.lineWidth = 2.2;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+  ctx.shadowBlur = 5;
+  ctx.beginPath();
+  ctx.roundRect(cx - size / 2, cy - size / 2, size, size, 8);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#ffca6b';
+  ctx.font = `900 ${Math.round(size * 0.58)}px "Segoe UI Symbol", "Microsoft JhengHei", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(arrowSymbol, cx, cy + 1);
+  ctx.restore();
+}
+
+function drawControlsGuideScreen() {
+  // 背景：若有 main.png 則淡化作為襯底，否則使用深色漸層
+  ctx.fillStyle = '#0d0a12';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (isMainCoverReady && mainCoverImg.complete && mainCoverImg.naturalWidth > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    const scale = canvas.height / mainCoverImg.naturalHeight;
+    const drawW = mainCoverImg.naturalWidth * scale;
+    ctx.drawImage(mainCoverImg, (canvas.width - drawW) * 0.5, 0, drawW, canvas.height);
+    ctx.restore();
+  }
+
+  // 主說明面板
+  const panelW = 860, panelH = 575;
+  const px = (canvas.width - panelW) / 2, py = 34;
+  ctx.save();
+  ctx.fillStyle = 'rgba(18, 15, 24, 0.94)';
+  ctx.strokeStyle = '#f5b041';
+  ctx.lineWidth = 3.5;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+  ctx.shadowBlur = 24;
+  ctx.beginPath();
+  ctx.roundRect(px, py, panelW, panelH, 18);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // 標題
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffca6b';
+  ctx.font = '900 32px "Microsoft JhengHei"';
+  ctx.fillText('🎮 操作功能鍵說明 (CONTROLS GUIDE)', canvas.width / 2, py + 46);
+
+  ctx.strokeStyle = 'rgba(245, 176, 65, 0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px + 40, py + 66);
+  ctx.lineTo(px + panelW - 40, py + 66);
+  ctx.stroke();
+
+  // 10 項操作說明依序排列
+  const startY = py + 100;
+  const rowH = 46;
+  const leftColX = px + 65;
+
+  for (let i = 0; i < 10; i++) {
+    const ry = startY + i * rowH;
+    // 偶數行微亮底條提升閱讀性
+    if (i % 2 === 0) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
+      ctx.beginPath();
+      ctx.roundRect(px + 28, ry - 19, panelW - 56, 38, 8);
+      ctx.fill();
+    }
+
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 21px "Microsoft JhengHei"';
+    ctx.fillStyle = '#f2ece1';
+
+    if (i === 0) {
+      // 1. ⬆️爬上台階/梯子/繩子…等
+      drawDpadDirIcon(leftColX + 18, ry, 34, '⬆️');
+      ctx.fillText('爬上台階 / 梯子 / 繩子…等', leftColX + 54, ry);
+    } else if (i === 1) {
+      // 2. ⬇️爬下台階/梯子/繩子…等
+      drawDpadDirIcon(leftColX + 18, ry, 34, '⬇️');
+      ctx.fillText('爬下台階 / 梯子 / 繩子…等', leftColX + 54, ry);
+    } else if (i === 2) {
+      // 3. ⬅️向左走 ⬅️⬅️向左跑
+      drawDpadDirIcon(leftColX + 18, ry, 34, '⬅️');
+      ctx.fillText('向左走', leftColX + 54, ry);
+      drawDpadDirIcon(leftColX + 168, ry, 34, '⬅️');
+      drawDpadDirIcon(leftColX + 208, ry, 34, '⬅️');
+      ctx.fillStyle = '#ffca6b';
+      ctx.fillText('向左跑', leftColX + 244, ry);
+    } else if (i === 3) {
+      // 4. ➡️向右走 ➡️➡️向右跑
+      drawDpadDirIcon(leftColX + 18, ry, 34, '➡️');
+      ctx.fillText('向右走', leftColX + 54, ry);
+      drawDpadDirIcon(leftColX + 168, ry, 34, '➡️');
+      drawDpadDirIcon(leftColX + 208, ry, 34, '➡️');
+      ctx.fillStyle = '#ffca6b';
+      ctx.fillText('向右跑', leftColX + 244, ry);
+    } else if (i === 4) {
+      // 5. 跑步時按 B 滑行
+      ctx.fillText('跑步時按', leftColX, ry);
+      drawXboxBtnIcon(leftColX + 114, ry, 17, 'B');
+      ctx.fillStyle = '#ffca6b';
+      ctx.fillText('滑行', leftColX + 144, ry);
+    } else if (i === 5) {
+      // 6. X 操作機關/拿取道具
+      drawXboxBtnIcon(leftColX + 18, ry, 17, 'X');
+      ctx.fillText('操作機關 / 拿取道具', leftColX + 54, ry);
+    } else if (i === 6) {
+      // 7. B 趴下/起立
+      drawXboxBtnIcon(leftColX + 18, ry, 17, 'B');
+      ctx.fillText('趴下 / 起立', leftColX + 54, ry);
+    } else if (i === 7) {
+      // 8. A 跳躍/起立
+      drawXboxBtnIcon(leftColX + 18, ry, 17, 'A');
+      ctx.fillText('跳躍 / 起立', leftColX + 54, ry);
+    } else if (i === 8) {
+      // 9. Y 著火時熄火
+      drawXboxBtnIcon(leftColX + 18, ry, 17, 'Y');
+      ctx.fillText('著火時熄火', leftColX + 54, ry);
+    } else if (i === 9) {
+      // 10. Y Y 關卡中切換角色(第三關解鎖)
+      drawXboxBtnIcon(leftColX + 18, ry, 17, 'Y');
+      drawXboxBtnIcon(leftColX + 58, ry, 17, 'Y');
+      ctx.fillText('關卡中切換角色 ', leftColX + 90, ry);
+      ctx.fillStyle = '#f5b041';
+      ctx.font = 'bold 19px "Microsoft JhengHei"';
+      ctx.fillText('(第三關解鎖)', leftColX + 252, ry);
+    }
+  }
+  ctx.restore();
+
+  // 最下面置中顯示「B 返回」按鈕
+  const btnW = 210, btnH = 50;
+  const bx = (canvas.width - btnW) / 2, by = canvas.height - 62;
+  ctx.save();
+  ctx.fillStyle = 'rgba(20, 16, 26, 0.95)';
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = 'rgba(231, 76, 60, 0.45)';
+  ctx.shadowBlur = 14;
+  ctx.beginPath();
+  ctx.roundRect(bx, by - btnH / 2, btnW, btnH, 25);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  drawXboxBtnIcon(bx + 44, by, 17, 'B');
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 23px "Microsoft JhengHei"';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('返回', bx + 78, by + 1);
+  ctx.restore();
+}
+function drawCharacterSelectScreen() {
+  const bg = ctx.createLinearGradient(0, 0, 0, canvas.height); bg.addColorStop(0, '#1a141b'); bg.addColorStop(1, '#0b080c'); ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#f5b041'; ctx.font = '900 36px "Microsoft JhengHei"'; ctx.fillText('選擇出戰角色 (CHARACTER SELECT)', canvas.width / 2, 54);
+  ctx.fillStyle = '#c8bed0'; ctx.font = 'bold 18px "Microsoft JhengHei"'; ctx.fillText('使用十字鍵 ◀ ▶ 切換角色至中央 ｜ 按「A」確認', canvas.width / 2, 88);
+  if (loadedCharacters.length === 0) { ctx.fillStyle = '#ffca6b'; ctx.font = 'bold 24px "Microsoft JhengHei"'; ctx.fillText(loadingMessage || '正在讀取角色...', canvas.width/2, canvas.height/2); return; }
+  const cX = canvas.width / 2, cW = 240, cH = 300, cY = 128; ctx.save(); ctx.strokeStyle = 'rgba(255, 202, 107, 0.35)'; ctx.lineWidth = 3; ctx.setLineDash([10, 6]); ctx.strokeRect(cX - cW * 0.56, cY - 22, cW * 1.12, cH + 26); ctx.restore();
+  loadedCharacters.forEach((ch, idx) => {
+    const oI = idx - charScrollVisualIdx, ccX = cX + oI * (cW + 46); if (ccX + cW < -50 || ccX - cW > canvas.width + 50) return;
+    const isSel = idx === selectedCharIdx, d = Math.min(1, Math.abs(oI));
+    ctx.save(); ctx.globalAlpha = 1 - d * 0.4; ctx.translate(ccX, cY + cH / 2 - (isSel ? 10 : 0)); ctx.scale(1.04 - d * 0.14, 1.04 - d * 0.14);
+    ctx.fillStyle = isSel ? 'rgba(65, 32, 28, 0.95)' : 'rgba(28, 22, 26, 0.78)'; ctx.strokeStyle = isSel ? '#ffca6b' : '#4a3d46'; ctx.lineWidth = isSel ? 5 : 2.5; if (isSel) { ctx.shadowColor = 'rgba(255, 180, 60, 0.65)'; ctx.shadowBlur = 24; }
+    ctx.beginPath(); ctx.roundRect(-cW / 2, -cH / 2, cW, cH, 16); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = isSel ? '#ffca6b' : '#8e8296'; ctx.font = 'bold 15px monospace'; ctx.fillText(`character/${ch.folder}`, 0, -cH / 2 + 28);
+    ctx.fillStyle = '#ffffff'; ctx.font = isSel ? '900 24px "Microsoft JhengHei"' : 'bold 20px "Microsoft JhengHei"'; ctx.fillText(ch.name || ch.folder, 0, -cH / 2 + 60);
+    drawSpinningCharacter(0, cH / 2 - 36, ch, isSel ? 1.42 : 0.95, isSel ? charSpinAngle : 0.35); ctx.restore();
+  });
+  const selChar = loadedCharacters[selectedCharIdx];
+  if (selChar && selChar.stats) {
+    const panelW = 780, panelH = 215, px = (canvas.width - panelW) / 2, py = 465;
+    ctx.save(); ctx.fillStyle = 'rgba(20, 16, 22, 0.95)'; ctx.strokeStyle = '#6e5544'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 14); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.fillStyle = '#ffca6b'; ctx.font = '900 22px "Microsoft JhengHei"'; ctx.fillText(`📊 【${selChar.name}】 角色能力表 (${selChar.title || selChar.folder})`, px + 26, py + 38);
+    const st = selChar.stats, rows = [{ label: '移動速度 (SPEED)', val: st.speed, max: 10, color: '#3498db', desc: `${st.speed} (爬行半速 ${st.speed * 0.5})` }, { label: '起火燃點 (IGNITION)', val: st.ignition, max: 10, color: '#f39c12', desc: `${st.ignition} (熱量上限 ${st.ignition * 25})` }, { label: '火焰耐熱 (RESIST)', val: st.resist, max: 10, color: '#2ecc71', desc: `${st.resist} (數值越高扣血越慢)` }, { label: '拍頭熄火 (EXTINGUISH)', val: st.extinguish, max: 4, color: '#e74c3c', desc: `需拍打 ${st.extinguish} 秒熄滅` }];
+    rows.forEach((r, i) => { const ry = py + 72 + i * 34; ctx.fillStyle = '#e0d6eb'; ctx.font = 'bold 17px "Microsoft JhengHei"'; ctx.fillText(r.label, px + 28, ry); const barX = px + 250, barW = 280; ctx.fillStyle = '#0d0a0e'; ctx.strokeStyle = '#3d323a'; ctx.lineWidth = 2; ctx.fillRect(barX, ry - 15, barW, 18); ctx.strokeRect(barX, ry - 15, barW, 18); ctx.fillStyle = r.color; ctx.fillRect(barX + 2, ry - 13, (barW - 4) * Math.min(1, r.val / r.max), 14); ctx.fillStyle = '#ffca6b'; ctx.font = 'bold 16px "Microsoft JhengHei"'; ctx.fillText(r.desc, barX + barW + 18, ry); });
+    ctx.restore();
+  }
+  drawMenuCornerPrompts([{ key: 'A', label: '確認', color: '#2ecc71' }]);
+}
+function drawStageSelectScreen() {
+  const bg = ctx.createLinearGradient(0, 0, 0, canvas.height); bg.addColorStop(0, '#161922'); bg.addColorStop(1, '#090b10'); ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const ch = loadedCharacters[selectedCharIdx];
+  ctx.textAlign = 'center'; ctx.fillStyle = '#f5b041'; ctx.font = '900 36px "Microsoft JhengHei"'; ctx.fillText('選擇挑戰關卡 (STAGE SELECT)', canvas.width / 2, 58);
+  ctx.fillStyle = '#c8bed0'; ctx.font = 'bold 18px "Microsoft JhengHei"'; ctx.fillText(`當前出戰：${ch ? ch.name : ''} ｜ ◀ ▶ 左右滑動 ｜ 按「A」進入、「B」返回`, canvas.width / 2, 94);
+  if (loadedStages.length === 0) { ctx.fillStyle = '#ff6b57'; ctx.font = 'bold 24px "Microsoft JhengHei"'; ctx.fillText('尚未讀取到任何關卡', canvas.width/2, canvas.height/2); return; }
+  const cX = canvas.width / 2, bW = 270, bH = 265, bY = 185; ctx.save(); ctx.fillStyle = 'rgba(245, 176, 65, 0.06)'; ctx.strokeStyle = 'rgba(255, 202, 107, 0.5)'; ctx.lineWidth = 3; ctx.setLineDash([12, 6]); ctx.beginPath(); ctx.roundRect(cX - bW * 0.58, bY - 30, bW * 1.16, bH + 48, 18); ctx.fill(); ctx.stroke(); ctx.restore();
+  loadedStages.forEach((st, idx) => {
+    const oI = idx - stageScrollVisualIdx, ccX = cX + oI * (bW + 46); if (ccX + bW < -60 || ccX - bW > canvas.width + 60) return;
+    const isSel = idx === selectedStageIdx, d = Math.min(1, Math.abs(oI));
+    ctx.save(); ctx.globalAlpha = 1 - d * 0.45; ctx.translate(ccX, bY + bH / 2 - (isSel ? 6 : 0)); ctx.scale(1.06 - d * 0.18, 1.06 - d * 0.18);
+    ctx.fillStyle = st.locked ? '#141218' : (isSel ? '#2d221e' : '#18151c'); ctx.strokeStyle = st.locked ? (isSel ? '#7f8c8d' : '#353140') : (isSel ? '#ffca6b' : '#453e52'); ctx.lineWidth = isSel ? 5 : 2.5;
+    if (isSel && !st.locked) { ctx.shadowColor = 'rgba(255, 190, 70, 0.65)'; ctx.shadowBlur = 24; }
+    ctx.beginPath(); ctx.roundRect(-bW / 2, -bH / 2, bW, bH, 14); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+    const cleanName = st.displayFolder || st.folder; ctx.fillStyle = st.locked ? '#8e8296' : (isSel ? '#ffca6b' : '#b0a6bd'); ctx.font = '900 22px "Microsoft JhengHei"'; ctx.fillText(`第 ${st.stageNumStr} 關 (${cleanName})`, 0, -bH / 2 + 36);
+    const iW = bW - 32, iH = bH - 100, iX = -iW / 2, iY = -bH / 2 + 52;
+    if (st.locked) { drawLockedStageThumbnail(iX, iY, iW, iH, isSel); ctx.strokeStyle = '#3a3545'; ctx.lineWidth = 2; ctx.strokeRect(iX, iY, iW, iH); ctx.fillStyle = isSel ? '#e74c3c' : '#6c6378'; ctx.font = 'bold 16px "Microsoft JhengHei"'; ctx.fillText('🔒 未開放 (無法選取)', 0, bH / 2 - 16); }
+    else { ctx.fillStyle = '#09070a'; ctx.strokeStyle = '#3a312c'; ctx.lineWidth = 2; ctx.fillRect(iX, iY, iW, iH); if (st.coverLoaded) ctx.drawImage(st.coverImg, iX, iY, iW, iH); else { ctx.fillStyle = '#7a6f85'; ctx.font = 'bold 14px "Microsoft JhengHei"'; ctx.fillText(`讀取中...`, 0, iY + iH / 2); } ctx.strokeRect(iX, iY, iW, iH); ctx.fillStyle = isSel ? '#ff7a6b' : '#776d82'; ctx.font = 'bold 16px "Microsoft JhengHei"'; ctx.fillText(isSel ? '👉 按「A」開始挑戰' : '◀ ▶ 移至中央選取', 0, bH / 2 - 16); }
+    ctx.restore();
+  });
+  const curSt = loadedStages[selectedStageIdx]; drawMenuCornerPrompts([ curSt && curSt.locked ? { key: 'A', label: '未開放', color: '#7f8c8d' } : { key: 'A', label: '確認', color: '#2ecc71' }, { key: 'B', label: '返回', color: '#e74c3c' }]);
+}
+function drawStageLoadingScreen(dt) {
+  stageLoadVisualProg += (stageLoadProgress - stageLoadVisualProg) * Math.min(1, dt * 10);
+  const bg = ctx.createLinearGradient(0, 0, 0, canvas.height); bg.addColorStop(0, '#14111a'); bg.addColorStop(1, '#07050a'); ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cx = canvas.width / 2, cy = canvas.height / 2 - 30, now = performance.now() * 0.004;
+  ctx.save(); ctx.translate(cx, cy - 55); ctx.strokeStyle = 'rgba(255, 202, 107, 0.18)'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, 0, 52, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = '#f5b041'; ctx.lineCap = 'round'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, 0, 52, now, now + Math.PI * 1.35); ctx.stroke(); ctx.strokeStyle = '#ff4d3d'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(0, 0, 36, -now * 1.6, -now * 1.6 + Math.PI * 1.1); ctx.stroke(); const pct = Math.min(100, Math.round(stageLoadVisualProg * 100)); ctx.fillStyle = '#ffffff'; ctx.font = '900 22px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`${pct}%`, 0, 0); ctx.restore();
+  ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = '#ffca6b'; ctx.font = '900 30px "Microsoft JhengHei"'; ctx.fillText(`⏳ 正在載入 ${stageLoadTitleText}`, cx, cy + 45); const barW = 540, barH = 26, barX = cx - barW / 2, barY = cy + 75; ctx.fillStyle = '#09070c'; ctx.strokeStyle = '#5c4b51'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 13); ctx.fill(); ctx.stroke(); const fillW = Math.max(16, (barW - 8) * Math.min(1, stageLoadVisualProg)), barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0); barGrad.addColorStop(0, '#f39c12'); barGrad.addColorStop(0.6, '#ffca6b'); barGrad.addColorStop(1, '#2ecc71'); ctx.fillStyle = barGrad; ctx.beginPath(); ctx.roundRect(barX + 4, barY + 4, fillW, barH - 8, 9); ctx.fill(); ctx.fillStyle = '#cfc4d8'; ctx.font = 'bold 18px "Microsoft JhengHei"'; ctx.fillText(stageLoadStepText, cx, barY + 56); ctx.restore();
+}
+function drawScene() { if (isBgReady) ctx.drawImage(rawBgImg, 0, 0, WORLD_W, WORLD_H); else { ctx.fillStyle = '#181210'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); } }
+
+function drawDebugCollisionOverlay() {
+  if (!showDebugCollision) return; ctx.save();
+  for (const z of FRICTION_ZONES) { const w = z.x2 - z.x1, h = z.yMax - z.yMin; ctx.fillStyle = z.intenseSparks ? 'rgba(255, 50, 20, 0.24)' : 'rgba(255, 190, 30, 0.22)'; ctx.strokeStyle = z.intenseSparks ? '#ff3b1f' : '#ffca3a'; ctx.lineWidth = 2.5; ctx.fillRect(z.x1, z.yMin, w, h); ctx.strokeRect(z.x1, z.yMin, w, h); if (z.requireCrawl && z.blockBot !== undefined) { const bTop = z.blockTop ?? (z.blockBot - 140); ctx.fillStyle = 'rgba(180, 0, 255, 0.28)'; ctx.strokeStyle = '#e056fd'; ctx.setLineDash([6, 4]); ctx.fillRect(z.x1, bTop, w, z.blockBot - bTop); ctx.strokeRect(z.x1, bTop, w, z.blockBot - bTop); ctx.setLineDash([]); ctx.fillStyle = '#ffb8ff'; ctx.font = 'bold 14px monospace'; ctx.fillText(`⛔壓頂 Y:${z.blockBot}`, z.x1 + w / 2, z.blockBot - 8); } ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px "Microsoft JhengHei"'; ctx.fillText(`🔥${z.id||'ZONE'} [立:${z.standFriction}/爬:${z.crawlFriction}]`, z.x1 + w / 2, z.yMin + 18); }
+  for (const w of SOLID_WALLS) { const wallX = w.x !== undefined ? w.x : ((w.x1 + w.x2) * 0.5); ctx.strokeStyle = '#ff2a55'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(wallX, w.yTop); ctx.lineTo(wallX, w.yBottom); ctx.stroke(); ctx.fillStyle = '#ff2a55'; ctx.beginPath(); ctx.arc(wallX, w.yTop, 4, 0, Math.PI * 2); ctx.arc(wallX, w.yBottom, 4, 0, Math.PI * 2); ctx.fill(); }
+  for (const lad of LADDERS) { ctx.fillStyle = 'rgba(0, 210, 255, 0.22)'; ctx.strokeStyle = '#00e1ff'; ctx.lineWidth = 2.5; ctx.fillRect(lad.x1, lad.yTop, lad.x2 - lad.x1, lad.yBottom - lad.yTop); ctx.strokeRect(lad.x1, lad.yTop, lad.x2 - lad.x1, lad.yBottom - lad.yTop); ctx.strokeStyle = '#ffee00'; ctx.beginPath(); ctx.moveTo(lad.botCenterX ?? (lad.x1 + lad.x2) * 0.5, lad.yBottom); ctx.lineTo(lad.topCenterX ?? (lad.x1 + lad.x2) * 0.5, lad.yTop); ctx.stroke(); }
+  for (const poly of GROUND_POLYLINES) { if (!poly.pts || poly.pts.length < 2) continue; ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 4.5; ctx.beginPath(); poly.pts.forEach((p, i) => i===0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])); ctx.stroke(); for (const p of poly.pts) { ctx.fillStyle = '#00ff66'; ctx.beginPath(); ctx.arc(p[0], p[1], 5.5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#b8ffcf'; ctx.font = 'bold 12px monospace'; ctx.fillText(`(${p[0]},${p[1]})`, p[0], p[1] + 16); } }
+  for (const m of activeMechanisms) { const isFg = (m.layer === 'foreground') || (m.type === 'foreground_mask'); ctx.fillStyle = isFg ? 'rgba(255, 140, 0, 0.26)' : 'rgba(74, 105, 189, 0.32)'; ctx.strokeStyle = isFg ? '#ff9f43' : '#70a1ff'; ctx.lineWidth = 2.5; if (isFg) ctx.setLineDash([8, 4]); ctx.fillRect(m.x, m.y, m.width, m.height); ctx.strokeRect(m.x, m.y, m.width, m.height); ctx.setLineDash([]); ctx.fillStyle = isFg ? '#ffbe76' : '#70a1ff'; ctx.font = 'bold 13px monospace'; ctx.fillText(isFg ? `🟠遮罩:${m.type}` : `⚙️${m.type}`, m.x + m.width / 2, m.y - 6); }
+  for (const it of activeItems) { if (it.collected && !it.isHeld && !it.isThrown) continue; ctx.fillStyle = 'rgba(11, 232, 129, 0.32)'; ctx.strokeStyle = '#0be881'; ctx.lineWidth = 2.5; ctx.fillRect(it.x, it.y, it.width, it.height); ctx.strokeRect(it.x, it.y, it.width, it.height); ctx.fillStyle = '#0be881'; ctx.font = 'bold 13px monospace'; ctx.fillText(`🎁${it.type}`, it.x + it.width / 2, it.y - 6); }
+  const gx1 = Math.max(0, GOAL_CONDITION.xMin ?? 0), gx2 = Math.min(WORLD_W, GOAL_CONDITION.xMax ?? 245), gy1 = Math.max(0, GOAL_CONDITION.yMin ?? 0), gy2 = Math.min(WORLD_H, GOAL_CONDITION.yMax ?? 575);
+  ctx.fillStyle = 'rgba(46, 204, 113, 0.28)'; ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.fillRect(gx1, gy1, gx2 - gx1, gy2 - gy1); ctx.strokeRect(gx1, gy1, gx2 - gx1, gy2 - gy1); ctx.fillStyle = '#2ecc71'; ctx.font = '900 18px "Microsoft JhengHei"'; ctx.fillText(`🏁 終點判定區`, (gx1 + gx2) / 2, gy1 + 28);
+  ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(SPAWN_POINT.x, SPAWN_POINT.y, 14, 0, Math.PI * 2); ctx.stroke();
+  
+  const isLowStance = player.crawling || !!(player.customHitbox && player.customHitbox.isLow);
+  const curH = player.customHitbox?.height ?? getStanceHeight(isLowStance); 
+  const curHalfW = player.customHitbox?.halfW ?? (player.crawling ? 52 : 16);
+  ctx.strokeStyle = '#ffffff'; 
+  ctx.strokeRect(player.x - curHalfW, player.y - curH, curHalfW * 2, curH); 
+  ctx.fillStyle = '#ffea00'; 
+  ctx.beginPath(); 
+  ctx.arc(player.x, player.y, 5, 0, Math.PI*2); 
+  ctx.fill(); 
+  ctx.fillText(`📍(${Math.round(player.x)}, ${Math.round(player.y)})`, player.x, player.y - curH - 10);
+  ctx.restore();
+}
+
+function drawPlayerStickman() {
+  const c = getActiveCharStats();
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  const r = c.headR, bw = c.bodyW, bh = c.bodyH, lw = c.limbW, t = player.animT, d = player.dir;
+  const outCol = player.dying ? '#111111' : '#080605';
+  const bodyCol = player.dying ? '#1a1a1a' : c.bodyColor;
+  const limbCol = player.dying ? '#141414' : '#2b211e';
+
+  if (player.dying) {
+    const dtDeath = player.deathTimer;
+
+    if (player.deathCause === 'fall') {
+      const animP = Math.min(1, dtDeath / 1.1);
+      const easeOut = 1 - Math.pow(1 - animP, 3);
+      const bounceY = animP < 0.7 ? Math.abs(Math.sin(animP * Math.PI * 2.5)) * 18 * (1 - animP) : 0;
+
+      ctx.lineCap = ctx.lineJoin = 'round';
+
+      ctx.save();
+      ctx.translate(-d * 14 * easeOut, -8 + 4 * easeOut);
+      ctx.rotate(-d * (0.3 + 1.15 * easeOut));
+      drawFullLimb(ctx, -3, 0, -10, 14, -16, 22, lw, false, d, '#2b211e', '#080605');
+      drawFullLimb(ctx,  3, 0,   8, 15,  14, 22, lw, false, d, '#2b211e', '#080605');
+      drawShapedTorso(ctx, 0, -bh * 0.24, bw, bh * 0.48, 0, c.bodyColor, '#080605');
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(d * 20 * easeOut, -18 + 12 * easeOut - bounceY * 0.6);
+      ctx.rotate(d * (0.4 + 1.1 * easeOut));
+      drawShapedTorso(ctx, 0, -bh * 0.24, bw, bh * 0.48, 0, c.bodyColor, '#080605');
+      drawFullLimb(ctx, -bw * 0.4, -bh * 0.35, -16, -bh * 0.1, -24, 6, lw, true, d, '#2b211e', '#080605');
+      drawFullLimb(ctx,  bw * 0.4, -bh * 0.35,  16, -bh * 0.1,  24, 8, lw, true, d, '#2b211e', '#080605');
+      ctx.restore();
+
+      const headX = d * (12 + 48 * easeOut);
+      const headY = -r - bounceY;
+      const rollAngle = d * (Math.PI * 2 * easeOut);
+
+      ctx.save();
+      ctx.translate(headX, headY);
+      ctx.rotate(rollAngle);
+
+      if (c.ponytail) {
+        ctx.save();
+        ctx.translate(-d * (r * 0.75), -r * 0.55);
+        ctx.fillStyle = '#c92a2a'; ctx.strokeStyle = '#080605'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-d * 20, -20, -d * 32, -4); ctx.quadraticCurveTo(-d * 30, 18, 0, 10); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+
+      const hGrad = ctx.createRadialGradient(-d * r * 0.25, -r * 0.25, r * 0.15, 0, 0, r);
+      hGrad.addColorStop(0, c.headColor);
+      hGrad.addColorStop(0.75, '#b82020');
+      hGrad.addColorStop(1, '#7a1212');
+      ctx.fillStyle = hGrad;
+      ctx.strokeStyle = '#080605';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      const drawXEye = (cx, cy, sz) => {
+        ctx.strokeStyle = '#080605';
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(cx - sz, cy - sz); ctx.lineTo(cx + sz, cy + sz);
+        ctx.moveTo(cx + sz, cy - sz); ctx.lineTo(cx - sz, cy + sz);
+        ctx.stroke();
+      };
+      const ex = d * r * 0.28, ey = -r * 0.04, eyeSize = r * 0.21;
+      drawXEye(ex - r * 0.26, ey, eyeSize);
+      drawXEye(ex + r * 0.26, ey, eyeSize);
+
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
+
+    if (dtDeath >= 1.0) {
+      ctx.restore();
+      return;
+    }
+    const p = dtDeath / 1.0;
+    ctx.globalAlpha = Math.max(0, 1 - p);
+    ctx.scale(1 - p * 0.4, 1 + p * 0.2);
+    ctx.filter = `grayscale(100%) brightness(${Math.max(10, 100 - p * 250)}%)`;
+  }
+
+  let hx = 0, hy = -(bh + r + 28);
+  ctx.lineCap = ctx.lineJoin = 'round';
+
+  let pluginPose = null;
+  for (const actId in window.GAME_ACTIONS_REGISTRY) {
+    const act = window.GAME_ACTIONS_REGISTRY[actId];
+    if (act && typeof act.drawBody === 'function') {
+      pluginPose = act.drawBody(ctx, player, c);
+      if (pluginPose) break;
+    }
+  }
+
+  if (pluginPose) {
+    hx = pluginPose.hx;
+    hy = pluginPose.hy;
+  } else if (player.ledgeClimbing) {
+    const p = player.ledgeProgress, grabRelX = player.ledgeGrabX - player.x, grabRelY = player.ledgeTargetY - player.y;
+    let hipX = 0, hipY = -32, bodyTilt = d * 0.15, lKneeX, lKneeY, lFootX, lFootY, rKneeX, rKneeY, rFootX, rFootY;
+    if (p < 0.18) { const k = p / 0.18; hipY = -30 + Math.sin(k * Math.PI) * 4; bodyTilt = d * 0.08; lKneeX = -d * 5; lKneeY = hipY + 18; lFootX = -d * 8; lFootY = hipY + 34; rKneeX = d * 3; rKneeY = hipY + 19; rFootX = 0; rFootY = hipY + 35; }
+    else if (p < 0.45) { const k = (p - 0.18) / 0.27; hipY = -30 - k * 8; bodyTilt = d * (0.12 + k * 0.25); lKneeX = d * (6 + k * 14); lKneeY = hipY + 16 - k * 14; lFootX = d * (2 + k * 12); lFootY = hipY + 32 - k * 18; rKneeX = -d * 4; rKneeY = hipY + 18 - k * 4; rFootX = -d * 8; rFootY = hipY + 34 - k * 5; }
+    else if (p < 0.68) { const k = (p - 0.45) / 0.23; hipY = -38 + k * 12; bodyTilt = d * (0.38 + (1 - k) * 0.12); lFootX = grabRelX + d * (6 + k * 8); lFootY = grabRelY; lKneeX = (hipX + lFootX) * 0.5 + d * 10; lKneeY = Math.min(hipY, lFootY) - 10; rFootX = -d * (10 * (1 - k)) + grabRelX * k; rFootY = (hipY + 28) * (1 - k) + (grabRelY + 6) * k; rKneeX = (hipX + rFootX) * 0.5 - d * 4; rKneeY = (hipY + rFootY) * 0.5 - 6; }
+    else if (p < 0.86) { const k = (p - 0.68) / 0.18; hipY = -26 + k * 4; bodyTilt = d * (0.42 * (1 - k * 0.4)); lFootX = d * 11; lFootY = grabRelY; lKneeX = d * 15; lKneeY = (hipY + lFootY) * 0.5 - 6; rFootX = -d * 7; rFootY = grabRelY; rKneeX = d * 4; rKneeY = (hipY + rFootY) * 0.5 - 4; }
+    else { const k = (p - 0.86) / 0.14; hipY = -22 - k * 10; bodyTilt = d * (0.25 * (1 - k) + 0.12 * k); lFootX = d * (11 * (1 - k) + 9 * k); lFootY = -2; lKneeX = d * (14 * (1 - k) + 6 * k); lKneeY = hipY + 16; rFootX = -d * (7 * (1 - k) + 9 * k); rFootY = -2; rKneeX = -d * (2 * (1 - k) + 6 * k); rKneeY = hipY + 16; }
+
+    const shX = hipX + Math.sin(bodyTilt) * bh, shY = hipY - Math.cos(bodyTilt) * bh;
+    hx = shX + d * 5; hy = shY - r + 6;
+
+    drawFullLimb(ctx, hipX - 2, hipY, rKneeX, rKneeY, rFootX, rFootY, lw, false, d, limbCol, outCol);
+    drawFullLimb(ctx, hipX + 2, hipY, lKneeX, lKneeY, lFootX, lFootY, lw, false, d, limbCol, outCol);
+    drawShapedTorso(ctx, (hipX + shX) * 0.5, (hipY + shY) * 0.5, bw, bh, bodyTilt, bodyCol, outCol);
+
+    if (p < 0.84) {
+      const hand1X = grabRelX - d * 3, hand1Y = grabRelY, hand2X = grabRelX + d * 5, hand2Y = grabRelY;
+      const elbowBend = (p >= 0.15 && p <= 0.75) ? 14 : 6;
+      const elb1X = (shX + hand1X) * 0.5 - d * elbowBend, elb1Y = (shY + hand1Y) * 0.5 + 4;
+      const elb2X = (shX + hand2X) * 0.5 + d * (elbowBend * 0.7), elb2Y = (shY + hand2Y) * 0.5 + 6;
+      drawFullLimb(ctx, shX - 3, shY + 5, elb1X, elb1Y, hand1X, hand1Y, lw, true, d, limbCol, outCol);
+      drawFullLimb(ctx, shX + 3, shY + 5, elb2X, elb2Y, hand2X, hand2Y, lw, true, d, limbCol, outCol);
+    } else {
+      const k = (p - 0.84) / 0.16;
+      drawFullLimb(ctx, shX - 2, shY + 6, shX - 12, shY + 20, shX - 15, shY + 32 * k, lw, true, d, limbCol, outCol);
+      drawFullLimb(ctx, shX + 2, shY + 6, shX + 12, shY + 20, shX + 15, shY + 32 * k, lw, true, d, limbCol, outCol);
+    }
+  } else if (player.ledgeClimbingDown) {
+    const p = player.ledgeProgress, grabRelX = player.ledgeGrabX - player.x, grabRelY = player.ledgeStartY - player.y;
+    let hipX = 0, hipY = -32, bodyTilt = d * 0.15;
+    if (p < 0.25) { const k = p / 0.25; hipY = -30 + k * 8; bodyTilt = d * (0.15 + k * 0.35); }
+    else { const k = Math.min(1, (p - 0.25) / 0.67); hipY = -22 - k * 10; bodyTilt = d * (0.5 * (1 - k) + 0.06 * k); }
+
+    const shX = hipX + Math.sin(bodyTilt) * bh, shY = hipY - Math.cos(bodyTilt) * bh;
+    hx = shX + d * 4; hy = shY - r + 6;
+
+    drawFullLimb(ctx, hipX - 2, hipY, hipX - d * 5, hipY + 16, hipX - d * 3, -2, lw, false, d, limbCol, outCol);
+    drawFullLimb(ctx, hipX + 2, hipY, hipX + d * 4, hipY + 16, hipX + d * 2, -2, lw, false, d, limbCol, outCol);
+    drawShapedTorso(ctx, (hipX + shX) * 0.5, (hipY + shY) * 0.5, bw, bh, bodyTilt, bodyCol, outCol);
+
+    const hand1X = grabRelX - d * 3, hand1Y = grabRelY, hand2X = grabRelX + d * 4, hand2Y = grabRelY;
+    const elbowBend = (1 - p) * 14 + 3;
+    const elb1X = (shX + hand1X) * 0.5 - d * elbowBend, elb1Y = (shY + hand1Y) * 0.5 - 4;
+    const elb2X = (shX + hand2X) * 0.5 + d * (elbowBend * 0.6), elb2Y = (shY + hand2Y) * 0.5 - 2;
+    drawFullLimb(ctx, shX - 3, shY + 5, elb1X, elb1Y, hand1X, hand1Y, lw, true, d, limbCol, outCol);
+    drawFullLimb(ctx, shX + 3, shY + 5, elb2X, elb2Y, hand2X, hand2Y, lw, true, d, limbCol, outCol);
+  } else if (player.stanceT > 0 && player.stanceT < 1) {
+    const p = player.stanceT, isStandingUp = !player.crawling;
+    let hipX = 0, hipY = -32, bodyTilt = 0;
+    let lKneeX, lKneeY, lFootX, lFootY, rKneeX, rKneeY, rFootX, rFootY;
+
+    if (isStandingUp) {
+      if (p > 0.5) {
+        const k = (1 - p) * 2; hipY = -14 - 10 * k; bodyTilt = d * (1.32 * (1 - k) + 0.6 * k);
+        lFootX = d * 10; lFootY = -2; lKneeX = d * 18; lKneeY = hipY + 10;
+        rFootX = -d * 12; rFootY = -2; rKneeX = -d * 6; rKneeY = -2;
+        hx = d * (bh * 0.68 * (1 - k) + 8 * k); hy = -(r + 14) - 10 * k;
+      } else {
+        const k = (0.5 - p) * 2; hipY = -24 - 8 * k; bodyTilt = d * (0.6 * (1 - k) + 0.12 * k);
+        lFootX = d * 5; lFootY = -2; lKneeX = d * 8; lKneeY = hipY + 12;
+        rFootX = -d * 5; rFootY = -2; rKneeX = -d * 8; rKneeY = hipY + 12;
+        hx = d * (8 * (1 - k) + 4 * k); hy = -24 - 28 * k;
+      }
+    } else {
+      if (p < 0.5) {
+        const k = p * 2; hipY = -32 + 16 * k; bodyTilt = d * (0.12 * (1 - k) + 0.8 * k);
+        lFootX = d * 4; lFootY = -2; lKneeX = d * 12; lKneeY = hipY + 10;
+        rFootX = -d * 4; rFootY = -2; rKneeX = -d * 8; rKneeY = hipY + 14;
+        hx = d * (4 * (1 - k) + 12 * k); hy = -(32 + bh) + 16 * k - r;
+      } else {
+        const k = (p - 0.5) * 2; hipY = -16 + 2 * k; bodyTilt = d * (0.8 * (1 - k) + 1.32 * k);
+        lFootX = d * (4 * (1 - k) + 18 * k); lFootY = -2; lKneeX = d * (12 * (1 - k) + 4 * k); lKneeY = hipY + 10;
+        rFootX = -d * (4 * (1 - k) + 12 * k); rFootY = -2; rKneeX = -d * (8 * (1 - k) + 20 * k); rKneeY = -6 * k;
+        hx = d * (12 * (1 - k) + (bh * 0.68 + r * 0.6) * k); hy = -(16 + bh + r) * (1 - k) + -(r + 14) * k;
+      }
+    }
+
+    drawFullLimb(ctx, hipX - 2, hipY, rKneeX, rKneeY, rFootX, rFootY, lw, false, d, limbCol, outCol);
+    drawFullLimb(ctx, hipX + 2, hipY, lKneeX, lKneeY, lFootX, lFootY, lw, false, d, limbCol, outCol);
+
+    const shX = hipX + Math.sin(bodyTilt) * bh, shY = hipY - Math.cos(bodyTilt) * bh;
+    drawShapedTorso(ctx, (hipX + shX) * 0.5, (hipY + shY) * 0.5, bw, bh, bodyTilt, bodyCol, outCol);
+
+    if (isStandingUp) {
+      drawFullLimb(ctx, shX - 3, shY + 5, shX - d * 6, shY + 15, shX + d * 8, -2, lw, true, d, limbCol, outCol);
+      drawFullLimb(ctx, shX + 3, shY + 5, shX, shY + 18, shX + d * 16, -2, lw, true, d, limbCol, outCol);
+    } else {
+      drawFullLimb(ctx, shX - 3, shY + 5, shX + d * 10, shY + 15, shX + d * 18, -2, lw, true, d, limbCol, outCol);
+      drawFullLimb(ctx, shX + 3, shY + 5, shX + d * 4, shY + 18, shX + d * 22, -2, lw, true, d, limbCol, outCol);
+    }
+  } else if (player.stanceT >= 1) {
+    const wv = Math.sin(t * 2.2) * 11;
+    hx = d * (bh * 0.68 + r * 0.6); hy = -(r + 4); // 將原本的 -(r + 14) 改為 -(r + 4)，使爬行時頭也往下貼齊
+
+
+    drawFullLimb(ctx, -d * bh * 0.4, -20, -d * (bh * 0.85 - wv), -10, -d * (bh * 1.15 - wv), -2, lw, false, d, limbCol, outCol);
+    drawFullLimb(ctx,  d * bh * 0.35, -22,  d * (bh * 0.65 - wv), -10,  d * (bh * 0.55 - wv), -2, lw, true,  d, limbCol, outCol);
+
+    drawShapedTorso(ctx, 0, -22, bw, bh, d * 1.32, bodyCol, outCol);
+
+    drawFullLimb(ctx, -d * bh * 0.4, -18, -d * (bh * 0.75 + wv), -8, -d * (bh * 1.05 + wv), -2, lw, false, d, limbCol, outCol);
+    if (player.slapping) {
+      const sy = hy - r - 4 + Math.sin(performance.now() * 0.05) * 10;
+      drawFullLimb(ctx, d * bh * 0.35, -22, hx + d * 14, hy - 6, hx, sy, lw, true, d, limbCol, outCol);
+    } else {
+      drawFullLimb(ctx, d * bh * 0.35, -20, d * (bh * 0.75 + wv), -9, d * (bh * 0.65 + wv), -2, lw, true, d, limbCol, outCol);
+    }
+  } else {
+    const swing = player.climbing ? Math.sin(t * 2) * 12 : (Math.abs(player.vx) > 5 ? Math.sin(t * 1.8) * 18 : 0);
+    let squatOffset = 0, kneeBend = 0;
+    if (player.landSquatTimer > 0) {
+      const p = 1 - (player.landSquatTimer / 0.3);
+      squatOffset = Math.sin(p * Math.PI) * 14;
+      kneeBend = squatOffset * 0.8;
+    }
+
+    // 計算原地轉身連續動畫參數 (0.0 -> 0.5 轉向正面微蹲重心交換 -> 1.0 轉至對向站穩)
+    const isTurningStand = player.turning && player.stanceT === 0 && !player.climbing;
+    const turnP = isTurningStand ? Math.min(1, player.turnTimer / (player.turnDuration || 0.6)) : 0;
+    const turnSmooth = turnP * turnP * (3 - 2 * turnP);
+    const turnFaceD = isTurningStand
+      ? (player.turnFromDir * (1 - turnSmooth) + player.turnToDir * turnSmooth)
+      : d;
+    const turnBob = isTurningStand ? Math.sin(turnP * Math.PI) * 6 : 0;
+
+    const hipY = -32 + squatOffset + turnBob, shY = -(32 + bh) + squatOffset + turnBob;
+    hx = turnFaceD * 4; hy = shY - r + 6;
+
+    // --- 新增：將道具繪製打包成函數，方便安插在身體和前手之間 ---
+    const drawItemInHand = () => {
+      if (!player.holdingItem) return;
+      const heldDef = window.GAME_ITEMS_REGISTRY[player.holdingItem.type];
+      if (heldDef && typeof heldDef.drawHeld === 'function') {
+        heldDef.drawHeld(ctx, player, player.holdingItem, player.holdingItem._img);
+      } else {
+        ctx.save();
+        ctx.translate(turnFaceD * 22, player.crawling ? -18 : -64);
+        if (player.holdingItem._img && player.holdingItem._img.complete && player.holdingItem._img.naturalWidth > 0) {
+          const iw = player.holdingItem.width || 28, ih = player.holdingItem.height || 28;
+          ctx.drawImage(player.holdingItem._img, -iw / 2, -ih / 2, iw, ih);
+        } else {
+          ctx.fillStyle = player.holdingItem.color || '#00d2d3';
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    };
+    // ------------------------------------
+
+    if (isTurningStand) {
+      // 原地轉身連續步伐：雙腿原地交錯換重心、膝蓋微屈、雙拳收於腰際隨轉身擺動，重心鎖定在 X=0
+      const stepLift = Math.sin(turnP * Math.PI) * 6;
+      const footDir = Math.abs(turnFaceD) < 0.2 ? player.turnToDir : Math.sign(turnFaceD);
+      const legSpread = 10 * turnFaceD;
+
+      drawFullLimb(ctx, -2 * turnFaceD, hipY, -legSpread * 0.6, hipY + 15 - stepLift * 0.5, -legSpread * 0.85, -2 - stepLift, lw, false, footDir, limbCol, outCol);
+      drawFullLimb(ctx,  2 * turnFaceD, hipY,  legSpread * 0.6, hipY + 15,                  legSpread * 0.85, -2,            lw, false, footDir, limbCol, outCol);
+
+      const armSpan = (bw * 0.45 + 10) * turnFaceD;
+      const elbowTwist = Math.sin(turnP * Math.PI) * 8;
+      const drawTurnArm = (isLeft) => {
+        if (isLeft) drawFullLimb(ctx, -bw * 0.35 * turnFaceD, shY + 6, -armSpan * 0.7 - elbowTwist, shY + 18, -armSpan * 0.9, shY + 30 - stepLift * 0.5, lw, true, footDir, limbCol, outCol);
+        else drawFullLimb(ctx,  bw * 0.35 * turnFaceD, shY + 6,  armSpan * 0.7 + elbowTwist, shY + 18,  armSpan * 0.9, shY + 30 + stepLift * 0.5, lw, true, footDir, limbCol, outCol);
+      };
+
+      const isFacingRight = turnFaceD >= 0;
+      drawTurnArm(!isFacingRight); // 畫後方手
+
+      // 軀幹在轉身正中間 (turnP=0.5) 時呈現正面寬度與直立角度
+      const turnTorsoW = bw * (1.12 - 0.12 * Math.abs(turnFaceD));
+      drawShapedTorso(ctx, 0, shY + bh * 0.5, turnTorsoW, bh, turnFaceD * 0.12, bodyCol, outCol);
+
+      drawItemInHand(); // <--- 插入在這裡：疊在身體和前手之間
+
+      drawTurnArm(isFacingRight);  // 畫前方手
+    } else {
+      drawFullLimb(ctx, -3, hipY, -9 - swing * 0.5 - kneeBend, hipY + 16 - squatOffset * 0.5, -12 - swing, -2, lw, false, d, limbCol, outCol);
+      drawFullLimb(ctx,  3, hipY,  9 + swing * 0.5 + kneeBend, hipY + 16 - squatOffset * 0.5,  12 + swing, -2, lw, false, d, limbCol, outCol);
+
+      const drawNormArm = (isLeft) => {
+        if (player.slapping) {
+          if (isLeft) { const s1 = Math.sin(performance.now() * 0.05) * 10; drawFullLimb(ctx, -bw * 0.4, shY + 6, -r - 16, hy - 4, hx - 6, hy - r - 2 + s1, lw, true, d, limbCol, outCol); }
+          else { const s2 = Math.cos(performance.now() * 0.05) * 10; drawFullLimb(ctx,  bw * 0.4, shY + 6,  r + 16, hy - 4, hx + 6, hy - r - 2 + s2, lw, true, d, limbCol, outCol); }
+        } else if (player.customArmPose === 'throw') {
+          if (isLeft) drawFullLimb(ctx, -bw * 0.4, shY + 6, -d * 8, shY + 12, -d * 14, shY + 18, lw, true, d, limbCol, outCol);
+          else drawFullLimb(ctx,  bw * 0.4, shY + 6,  d * 18, shY - 6,  d * 34, shY + 4,  lw, true, d, limbCol, outCol);
+        } else if (player.holdingItem) {
+          if (isLeft) drawFullLimb(ctx, -bw * 0.4, shY + 6, d * 10, shY + 16, d * 20, shY + 12, lw, true, d, limbCol, outCol);
+          else drawFullLimb(ctx,  bw * 0.4, shY + 6, d * 12, shY + 18, d * 22, shY + 14, lw, true, d, limbCol, outCol);
+        } else if (player.raisingHands) {
+          if (isLeft) drawFullLimb(ctx, -bw * 0.45, shY + 6, -16 + d * 6, hy - r * 0.3, -10 + d * 12, hy - r - 14, lw, true, d, limbCol, outCol);
+          else drawFullLimb(ctx,  bw * 0.45, shY + 6,  16 + d * 6, hy - r * 0.3,  10 + d * 12, hy - r - 14, lw, true, d, limbCol, outCol);
+        } else if (player.climbing) {
+          const ca = Math.sin(t * 2) * 14;
+          if (isLeft) drawFullLimb(ctx, -bw * 0.4, shY + 5, -12, shY - 4 + ca * 0.5, -16, shY - 12 + ca, lw, true, d, limbCol, outCol);
+          else drawFullLimb(ctx,  bw * 0.4, shY + 5,  12, shY - 4 - ca * 0.5,  16, shY - 12 - ca, lw, true, d, limbCol, outCol);
+        } else {
+          const arm = Math.abs(player.vx) > 5 ? -swing : 0;
+          if (isLeft) drawFullLimb(ctx, -2, shY + 6, -14 - arm * 0.6, shY + 20, -18 - arm, shY + 34, lw, true, d, limbCol, outCol);
+          else drawFullLimb(ctx,  2, shY + 6,  14 + arm * 0.6, shY + 20,  18 + arm, shY + 34, lw, true, d, limbCol, outCol);
+        }
+      };
+
+      const isFacingRight = turnFaceD >= 0;
+      drawNormArm(!isFacingRight); // 畫後方手
+      drawShapedTorso(ctx, 0, shY + bh * 0.5, bw, bh, player.climbing ? 0 : d * 0.12, bodyCol, outCol);
+
+      drawItemInHand(); // <--- 插入在這裡：疊在身體和前手之間
+
+      drawNormArm(isFacingRight);  // 畫前方手
+    }
+  }
+
+  // 計算頭部、眼睛與馬尾的平滑轉向係數 (支援站立轉身與爬行轉身)
+  const headTurnP = player.turning ? Math.min(1, player.turnTimer / (player.turnDuration || 0.6)) : 0;
+  const headTurnSmooth = headTurnP * headTurnP * (3 - 2 * headTurnP);
+  const faceD = player.turning
+    ? (player.turnFromDir * (1 - headTurnSmooth) + player.turnToDir * headTurnSmooth)
+    : d;
+
+
+
+  if (c.ponytail) {
+    const tailDir = Math.abs(faceD) < 0.15 ? -player.turnToDir : -Math.sign(faceD);
+    ctx.save();
+    ctx.translate(hx - faceD * (r * 0.75), hy - r * 0.55);
+    ctx.rotate(Math.sin(t * 2.5) * 0.18);
+    ctx.fillStyle = player.dying ? '#222' : '#c92a2a';
+    ctx.strokeStyle = outCol;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(tailDir * 20, -20, tailDir * 32, -4);
+    ctx.quadraticCurveTo(tailDir * 40, 8, tailDir * 46, -6);
+    ctx.quadraticCurveTo(tailDir * 30, 18, 0, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (player.onFire) {
+    const now = performance.now(), flk1 = 1.0 + Math.sin(now * 0.032) * 0.22, flk2 = 1.0 + Math.cos(now * 0.045) * 0.25, sway = Math.sin(now * 0.02) * 8;
+    ctx.save();
+    ctx.translate(hx, hy - r * 0.5);
+    const fireGlow = ctx.createRadialGradient(0, -r * 1.2, r * 0.2, 0, -r * 1.2, r * 4.2);
+    fireGlow.addColorStop(0, 'rgba(255, 220, 80, 0.75)');
+    fireGlow.addColorStop(0.45, 'rgba(255, 65, 15, 0.45)');
+    fireGlow.addColorStop(1, 'rgba(255, 20, 0, 0)');
+    ctx.fillStyle = fireGlow;
+    ctx.beginPath();
+    ctx.arc(0, -r * 1.2, r * 4.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ff2a00'; ctx.strokeStyle = '#1a0500'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-r * 1.35, r * 0.3);
+    ctx.quadraticCurveTo(-r * 1.85, -r * 1.2, -r * 1.15 + sway * 0.5, -r * 2.5 * flk1);
+    ctx.lineTo(-r * 0.55, -r * 1.5);
+    ctx.quadraticCurveTo(-r * 0.4, -r * 2.8, sway, -r * 3.7 * flk2);
+    ctx.quadraticCurveTo(r * 0.4, -r * 2.8, r * 0.55, -r * 1.5);
+    ctx.lineTo(r * 1.15 + sway * 0.5, -r * 2.4 * flk2);
+    ctx.quadraticCurveTo(r * 1.85, -r * 1.2, r * 1.35, r * 0.3);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#ff7b00';
+    ctx.beginPath();
+    ctx.moveTo(-r * 1.0, r * 0.25);
+    ctx.quadraticCurveTo(-r * 1.3, -r * 1.0, -r * 0.7 + sway * 0.4, -r * 2.0 * flk2);
+    ctx.lineTo(-r * 0.25, -r * 1.2);
+    ctx.quadraticCurveTo(0, -r * 2.3, sway * 0.7, -r * 2.9 * flk1);
+    ctx.quadraticCurveTo(r * 0.25, -r * 2.1, r * 0.3, -r * 1.2);
+    ctx.lineTo(r * 0.75 + sway * 0.4, -r * 1.9 * flk1);
+    ctx.quadraticCurveTo(r * 1.3, -r * 1.0, r * 1.0, r * 0.25);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#fff375';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.6, r * 0.2);
+    ctx.quadraticCurveTo(-r * 0.7, -r * 0.9, 0 + sway * 0.3, -r * 1.95 * flk1);
+    ctx.quadraticCurveTo(r * 0.7, -r * 0.9, r * 0.6, r * 0.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(hx, hy);
+  const hGrad = ctx.createRadialGradient(-faceD * r * 0.25, -r * 0.25, r * 0.15, 0, 0, r);
+  hGrad.addColorStop(0, player.dying ? '#262626' : c.headColor);
+  hGrad.addColorStop(0.75, player.dying ? '#1a1a1a' : '#b82020');
+  hGrad.addColorStop(1, player.dying ? '#0a0a0a' : '#7a1212');
+  ctx.fillStyle = hGrad;
+  ctx.strokeStyle = outCol;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 雙眼隨轉身角度由一側平滑移過正面再到另一側
+  const ex = faceD * r * 0.36, ey = -r * 0.06, er = r * 0.24;
+  if (player.slapping) {
+    ctx.strokeStyle = '#080605';
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(ex - 7, ey - 5); ctx.lineTo(ex + 3, ey); ctx.lineTo(ex - 7, ey + 5);
+    ctx.stroke();
+  } else {
+    const eyeSep = r * (0.20 + 0.06 * (1 - Math.abs(faceD)));
+    ctx.fillStyle = outCol;
+    ctx.beginPath();
+    ctx.arc(ex - eyeSep, ey, er * 0.92, 0, Math.PI * 2);
+    ctx.arc(ex + eyeSep, ey, er * 1.02, 0, Math.PI * 2);
+    ctx.fill();
+    if (player.onFire) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+
+  if (nearestInteractableItem && !player.holdingItem && !player.dying) {
+    const promptTxt = nearestInteractableItem.item.promptText || nearestInteractableItem.def.promptText || '拿取';
+    ctx.save();
+    ctx.font = '900 15px "Microsoft JhengHei"';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(16, 14, 24, 0.88)';
+    ctx.strokeStyle = '#3498db';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(-48, hy - r - 42, 96, 26, 13);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#6cb0ff';
+    ctx.fillText(`[X] ${promptTxt}`, 0, hy - r - 24);
+    ctx.restore();
+  }
+  if (player.activeCustomAction && typeof player.activeCustomAction.draw === 'function') {
+    player.activeCustomAction.draw(ctx, player, c);
+  }
+  ctx.restore();
+}
+
+function drawEffects() {
+  for (const p of particles) {
+    ctx.save();
+    const a = Math.max(0, p.life / p.maxLife);
+    if (p.type === 'death_ash') {
+      ctx.fillStyle = p.color; ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    } else if (p.type === 'death_smoke') {
+      ctx.fillStyle = `rgba(20, 20, 20, ${a * 0.8})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (2.5 - a * 1.5), 0, Math.PI * 2); ctx.fill();
+    } else if (p.type === 'spark') { 
+      ctx.fillStyle = p.color; ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); 
+    } else { 
+      ctx.fillStyle = `rgba(30, 26, 25, ${a * 0.82})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (2.6 - a * 1.6), 0, Math.PI * 2); ctx.fill(); 
+    }
+    ctx.restore();
+  }
+}
+
+// 👇 新增開始：繪製關卡說明視窗 (Help Overlay) 👇
+function drawStageHelpOverlay() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const panelW = 760, panelH = 480;
+  const px = (canvas.width - panelW) / 2, py = (canvas.height - panelH) / 2;
+
+  ctx.fillStyle = 'rgba(18, 15, 24, 0.96)';
+  ctx.strokeStyle = '#3498db';
+  ctx.lineWidth = 4;
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 20;
+  ctx.beginPath();
+  ctx.roundRect(px, py, panelW, panelH, 16);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  const helpArr = (rawCollisionData && rawCollisionData.stageHelp) ? (Array.isArray(rawCollisionData.stageHelp) ? rawCollisionData.stageHelp : [rawCollisionData.stageHelp]) : [];
+  const totalPages = helpArr.length > 0 ? 2 : 1;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffca6b';
+  ctx.font = '900 28px "Microsoft JhengHei"';
+  ctx.fillText(helpCurrentPage === 1 ? '🎮 操作說明 (CONTROLS)' : '📝 關卡提示 (STAGE INFO)', canvas.width / 2, py + 45);
+  ctx.strokeStyle = 'rgba(245, 176, 65, 0.4)';
+  ctx.beginPath(); ctx.moveTo(px + 40, py + 65); ctx.lineTo(px + panelW - 40, py + 65); ctx.stroke();
+
+  if (helpCurrentPage === 1) {
+    const lines = [
+      "⬆️ 爬上台階/梯子/繩子", "⬇️ 爬下台階/梯子/繩子", "⬅️ ➡️ 左右走 (連按兩下可跑)",
+      "[B] 跑步時滑行 ｜ 趴下起立", "[X] 操作機關 / 拿取與丟出", "[A] 跳躍 / 站立",
+      "[Y] 著火時連續拍打熄火", "[Y]+[Y] 切換角色(第三關解鎖)"
+    ];
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f2ece1';
+    ctx.font = 'bold 22px "Microsoft JhengHei"';
+    for (let i = 0; i < lines.length; i++) {
+      const col = Math.floor(i / 4), row = i % 4;
+      ctx.fillText(lines[i], px + 60 + col * 340, py + 120 + row * 60);
+    }
+  } else if (helpCurrentPage === 2) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f2ece1';
+    ctx.font = 'bold 22px "Microsoft JhengHei"';
+    helpArr.forEach((line, i) => {
+      ctx.fillText(`• ${line}`, px + 60, py + 120 + i * 45);
+    });
+  }
+
+  if (totalPages > 1) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f5b041';
+    ctx.font = 'bold 22px "Microsoft JhengHei"';
+    let navTxt = `${helpCurrentPage === 2 ? '◀ ' : ''}第 ${helpCurrentPage} / ${totalPages} 頁${helpCurrentPage === 1 ? ' ▶' : ''}`;
+    ctx.fillText(navTxt, canvas.width / 2, py + panelH - 30);
+  }
+
+  const bx = px + panelW - 120, by = py + panelH - 40;
+  drawXboxBtnIcon(bx, by, 16, 'B');
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 20px "Microsoft JhengHei"';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('返回', bx + 24, by + 1);
+
+  ctx.restore();
+}
+// 👆 新增結束 👆
+
+function drawEndBanner() {
+  if (!player.won && !player.dead) return;
+  ctx.save(); ctx.fillStyle = 'rgba(10, 8, 12, 0.86)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cx = canvas.width / 2, cy = canvas.height / 2 - 28, nextUnlockedIdx = findNextUnlockedStageIndex(selectedStageIdx), isAllCleared = (nextUnlockedIdx === -1);
+  ctx.textAlign = 'center'; ctx.fillStyle = player.won ? '#f5b041' : '#ff4d3d'; ctx.font = '900 42px "Microsoft JhengHei"';
+  if (player.won) {
+    if (isAllCleared) {
+      ctx.fillText('🏆 恭喜全破！通關所有關卡！', cx, cy);
+    } else {
+      ctx.fillText('🎉 抵達終點！成功過關！', cx, cy);
+    }
+  } else {
+    ctx.fillText(player.deathCause === 'fall' ? '💥 你死亡了！挑戰失敗' : '🔥 火柴燒盡了！挑戰失敗', cx, cy);
+  }
+  const prompts = player.won ? (isAllCleared ? [{ key: 'A', label: '返回關卡選單', color: '#2ecc71' }] : [ { key: 'A', label: '下一關', color: '#2ecc71' }, { key: 'B', label: '返回關卡選單', color: '#e74c3c' } ]) : [ { key: 'A', label: '重新挑戰', color: '#2ecc71' }, { key: 'B', label: '返回關卡選單', color: '#e74c3c' } ];
+  ctx.font = '900 22px "Microsoft JhengHei"'; const gap = 24, widths = prompts.map(p => 44 + 12 + ctx.measureText(p.label).width + 28), totalW = widths.reduce((a, b) => a + b, 0) + gap * (prompts.length - 1); let curX = cx - totalW / 2; const btnY = cy + 78;
+  prompts.forEach((p, idx) => {
+    const w = widths[idx]; ctx.fillStyle = 'rgba(26, 22, 34, 0.96)'; ctx.strokeStyle = p.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(curX, btnY - 26, w, 52, 26); ctx.fill(); ctx.stroke();
+    const circleX = curX + 28; ctx.fillStyle = '#14121a'; ctx.strokeStyle = p.color; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(circleX, btnY, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = p.color; ctx.font = '900 19px "Segoe UI", "Arial Black", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.key, circleX, btnY + 1);
+    ctx.fillStyle = '#ffffff'; ctx.font = '900 22px "Microsoft JhengHei"'; ctx.textAlign = 'left'; ctx.fillText(p.label, circleX + 24, btnY + 1);
+    curX += w + gap;
+  }); ctx.restore();
+}
+
+let prevTime = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - prevTime) / 1000); prevTime = now;
+  pollHardwareGamepad(); ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (gameState === STATE.TITLE_LOADING) { updateMenuLogic(dt); drawTitleLoadingScreen(); }
+  else if (gameState === STATE.CONTROLS_GUIDE) { updateMenuLogic(dt); drawControlsGuideScreen(); }
+  else if (gameState === STATE.CHAR_SELECT) { updateMenuLogic(dt); drawCharacterSelectScreen(); }
+  else if (gameState === STATE.STAGE_SELECT) { updateMenuLogic(dt); drawStageSelectScreen(); }
+  else if (gameState === STATE.STAGE_LOADING) { drawStageLoadingScreen(dt); }
+  /* 👇 修改開始：加入 STAGE_HELP 迴圈處理 👇 */
+  else if (gameState === STATE.PLAYING || gameState === STATE.STAGE_HELP) {
+    if (gameState === STATE.STAGE_HELP) updateMenuLogic(dt);
+    else updatePhysics(dt);
+    ctx.save();
+    if (followCameraMode) { const scale = 1.05, viewW = canvas.width / scale, viewH = canvas.height / scale, camX = Math.max(viewW / 2, Math.min(WORLD_W - viewW / 2, player.x)), camY = Math.max(viewH / 2, Math.min(WORLD_H - viewH / 2, player.y - 90)); ctx.scale(scale, scale); ctx.translate(viewW / 2 - camX, viewH / 2 - camY); }
+    else { const scale = Math.min(canvas.width / WORLD_W, canvas.height / WORLD_H), offsetX = (canvas.width - WORLD_W * scale) / 2, offsetY = (canvas.height - WORLD_H * scale) / 2; ctx.translate(offsetX, offsetY); ctx.scale(scale, scale); }
+    drawScene(); drawEntities('background'); drawPlayerStickman(); drawEntities('foreground'); drawDebugCollisionOverlay(); drawEffects(); ctx.restore(); drawEndBanner();
+    
+    if (gameState === STATE.STAGE_HELP) drawStageHelpOverlay(); // 疊加畫出說明視窗
+  }
+  /* 👆 修改結束 👆 */
+  syncPrevInput(); requestAnimationFrame(loop);
+}
+
+autoDetectAndStartGame();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
