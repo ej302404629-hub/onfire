@@ -532,16 +532,33 @@ let rawCollisionData = null;
 let activeMechanisms = [];
 let activeItems = [];
 let nearestInteractableItem = null;
+
 let stageSnapshotStr = null; 
+let stageSnapshotEnv = null; // 👈 新增：用於儲存背景圖、環境尺寸與碰撞資料
 let hasCheckpointSnapshot = false;
 
-// 將當前機關與道具狀態寫入暫存區
 // 將當前機關與道具狀態寫入暫存區 (不再記錄殘血與熱量)
 function saveStageSnapshot() {
   stageSnapshotStr = JSON.stringify({
     mechanisms: activeMechanisms,
     items: activeItems
   });
+  
+  // 👇 新增：備份當下房間的全域環境變數與背景圖
+  stageSnapshotEnv = {
+    worldW: WORLD_W,
+    worldH: WORLD_H,
+    groundPolylines: JSON.parse(JSON.stringify(GROUND_POLYLINES)),
+    ladders: JSON.parse(JSON.stringify(LADDERS)),
+    solidWalls: JSON.parse(JSON.stringify(SOLID_WALLS)),
+    frictionZones: JSON.parse(JSON.stringify(FRICTION_ZONES)),
+    spawnPoint: JSON.parse(JSON.stringify(SPAWN_POINT)),
+    goalCondition: JSON.parse(JSON.stringify(GOAL_CONDITION)),
+    bgImg: rawBgImg,
+    depthImg: rawDepthImg,
+    isBgReady: isBgReady,
+    isDepthReady: isDepthReady
+  };
 }
 
 // 從暫存區讀取狀態並覆蓋當前實體
@@ -550,6 +567,29 @@ function restoreStageSnapshot() {
   try {
     const snap = JSON.parse(stageSnapshotStr);
     
+    // 👇 新增：還原房間的全域環境與背景圖 (解決死在子房間，背景與地形卻沒切換回來的 Bug)
+    if (stageSnapshotEnv) {
+      WORLD_W = stageSnapshotEnv.worldW;
+      WORLD_H = stageSnapshotEnv.worldH;
+      GROUND_POLYLINES = JSON.parse(JSON.stringify(stageSnapshotEnv.groundPolylines));
+      LADDERS = JSON.parse(JSON.stringify(stageSnapshotEnv.ladders));
+      SOLID_WALLS = JSON.parse(JSON.stringify(stageSnapshotEnv.solidWalls));
+      FRICTION_ZONES = JSON.parse(JSON.stringify(stageSnapshotEnv.frictionZones));
+      SPAWN_POINT = JSON.parse(JSON.stringify(stageSnapshotEnv.spawnPoint));
+      GOAL_CONDITION = JSON.parse(JSON.stringify(stageSnapshotEnv.goalCondition));
+      
+      // 還原背景圖片與 WebGL 狀態
+      rawBgImg = stageSnapshotEnv.bgImg;
+      rawDepthImg = stageSnapshotEnv.depthImg;
+      isBgReady = stageSnapshotEnv.isBgReady;
+      isDepthReady = stageSnapshotEnv.isDepthReady;
+      
+      // 如果有開啟 3D 景深，同步更新 WebGL 材質
+      if (isBgReady && isDepthReady && typeof updateWebGLTextures === 'function') {
+        updateWebGLTextures(rawBgImg, rawDepthImg);
+      }
+    }
+
     // 重新建立機關實體 (保留原型鏈上的函式)
     activeMechanisms = []; window.activeMechanisms = activeMechanisms;
     snap.mechanisms.forEach(rawMech => {
@@ -577,14 +617,13 @@ function restoreStageSnapshot() {
       activeItems.push(rawItem);
     });
 
-    // 💡 修正：移除原本覆蓋 player.hp 與 player.heat 的程式碼！
-    // 讓角色重生時，永遠保持 initPlayerAndEntities() 設定的 100 滿血與 0 熱量
     return true;
   } catch (e) {
     console.warn("還原快照失敗", e);
     return false;
   }
 }
+
 
 
 // 👇 修改開始：加入 STAGE_HELP 狀態與頁碼變數 👇
