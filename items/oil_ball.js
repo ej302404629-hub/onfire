@@ -476,7 +476,6 @@
         const minAngle = Math.atan2(minVyMag, minVx);
         const maxAngle = Math.PI / 4; // 45度
         const curAngle = minAngle + (maxAngle - minAngle) * p;
-        const deg = Math.round((curAngle * 180) / Math.PI);
 
         // 繪製動態投擲角度與力道瞄準線
         const arrowLen = 26 + p * 38;
@@ -501,29 +500,6 @@
         ctx.closePath();
         ctx.fill();
 
-        const barW = 46;
-        const barH = 8;
-        const bx = -barW / 2;
-        const currentHeight = player.customHitbox?.height ?? (player.crawling ? 64 : 132);
-        const by = -currentHeight - 22;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, barW, barH, 4);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = 'rgba(255, 120, 50, 0.95)'; 
-        ctx.beginPath();
-        ctx.roundRect(bx + 1, by + 1, Math.max(0, (barW - 2) * p), barH - 2, 3);
-        ctx.fill();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 12px "Microsoft JhengHei"';
-        ctx.textAlign = 'center';
-        ctx.fillText(`🛢️ ${Math.floor(p * 100)}% (${deg}°)`, 0, by - 6);
         ctx.restore();
       }
     }

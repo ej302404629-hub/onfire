@@ -52,8 +52,18 @@
       }
     },
 
-    explode: function(item, ctxObj) {
+    // 加入可選的 player 參數，用來觸發嚇退效果
+    explode: function(item, ctxObj, player) {
       if (item.exploded) return;
+      
+      // 【新增】如果水球是在手上被燒破的，讓角色嚇一跳往後退
+      if (item.isHeld && player) {
+        const dir = player.dir || 1;
+        player.vx = -dir * 250;   // 往反方向退
+        player.vy = -220;         // 驚嚇跳躍的高度
+        player.grounded = false;  // 強制解除貼地狀態，讓引擎允許起跳
+      }
+
       item.exploded = true;
       item.isHeld = false;
       item.isThrown = false;
@@ -61,18 +71,18 @@
       item.isCharging = false;
       item.alwaysDraw = true; // 強制主程式繼續呼叫 draw，才能畫出水花特效
 
-      // 1. 產生水花特效
+      // 1. 產生水花特效 (加大版)
       const cx = item.x + item.width * 0.5;
       const cy = item.y + item.height * 0.5;
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 25; i++) {
         item.splashes.push({
-          x: cx + (Math.random() - 0.5) * 16,
-          y: cy + (Math.random() - 0.5) * 16,
-          vx: (Math.random() - 0.5) * 200,
-          vy: -80 - Math.random() * 120,
-          life: 0.35 + Math.random() * 0.25,
-          maxLife: 0.6,
-          r: 2 + Math.random() * 3.5
+          x: cx + (Math.random() - 0.5) * 20,
+          y: cy + (Math.random() - 0.5) * 20,
+          vx: (Math.random() - 0.5) * 350,
+          vy: -120 - Math.random() * 180,
+          life: 0.45 + Math.random() * 0.3,
+          maxLife: 0.75,
+          r: 4 + Math.random() * 6 // 讓水滴體積變大，更明顯
         });
       }
 
@@ -228,7 +238,7 @@
           }
 
           if (hitSomething) {
-            this.explode(item, ctxObj);
+            this.explode(item, ctxObj, player); // 傳入 player
           }
         }
       }
@@ -310,7 +320,6 @@
         const minAngle = Math.atan2(minVyMag, minVx);
         const maxAngle = Math.PI / 4; // 45度
         const curAngle = minAngle + (maxAngle - minAngle) * p;
-        const deg = Math.round((curAngle * 180) / Math.PI);
 
         // 繪製動態投擲角度與力道瞄準線
         const arrowLen = 26 + p * 38;
@@ -335,29 +344,6 @@
         ctx.closePath();
         ctx.fill();
 
-        const barW = 46;
-        const barH = 8;
-        const bx = -barW / 2;
-        const currentHeight = player.customHitbox?.height ?? (player.crawling ? 64 : 132);
-        const by = -currentHeight - 22;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, barW, barH, 4);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = 'rgba(50, 180, 255, 0.95)';
-        ctx.beginPath();
-        ctx.roundRect(bx + 1, by + 1, Math.max(0, (barW - 2) * p), barH - 2, 3);
-        ctx.fill();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 12px "Microsoft JhengHei"';
-        ctx.textAlign = 'center';
-        ctx.fillText(`💧 ${Math.floor(p * 100)}% (${deg}°)`, 0, by - 6);
         ctx.restore();
       }
     }

@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>火柴棒大逃亡：模組化外掛與全破畫面版</title>
+<title>Match head：onFire</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
   body {
@@ -247,6 +247,25 @@
     color: #bfa57a;
     font-size: 14px;
   }
+  /* 控制內部文字符號旋轉 */
+  .dpad-btn.rot-ul { text-shadow: none; }
+  .dpad-btn.rot-ul::after { content: "▲"; position: absolute; transform: rotate(-45deg); color: #f5b041; }
+  .dpad-btn.rot-ur { text-shadow: none; }
+  .dpad-btn.rot-ur::after { content: "▲"; position: absolute; transform: rotate(45deg); color: #f5b041; }
+  .dpad-btn.rot-dl { text-shadow: none; }
+  .dpad-btn.rot-dl::after { content: "▲"; position: absolute; transform: rotate(-135deg); color: #f5b041; }
+  .dpad-btn.rot-dr { text-shadow: none; }
+  .dpad-btn.rot-dr::after { content: "▲"; position: absolute; transform: rotate(135deg); color: #f5b041; }
+
+  /* 讓原本的字體變透明，只顯示旋轉後的 ::after 偽元素，並處理按下狀態 */
+  .dpad-btn.diag.rot-ul, .dpad-btn.diag.rot-ur, .dpad-btn.diag.rot-dl, .dpad-btn.diag.rot-dr {
+    color: transparent;
+    position: relative;
+  }
+  .dpad-btn.diag.pressed::after, .dpad-btn.diag:active::after {
+    color: #ffffff;
+  }
+
   .dpad-btn.pressed, .dpad-btn:active {
     transform: translateY(3px);
     box-shadow: 0 1px 0 #09080c, 0 2px 4px rgba(0,0,0,0.7), inset 0 1px 2px rgba(255,255,255,0.15);
@@ -435,16 +454,17 @@
         <div class="joystick-knob" id="joystick-knob"></div>
       </div>
       <div class="dpad-8way-grid" id="dpad-8way-grid">
-        <button type="button" class="dpad-btn diag" id="pad-up-left" data-dirs="up,left">↖</button>
+        <button type="button" class="dpad-btn diag rot-ul" id="pad-up-left" data-dirs="up,left">▲</button>
         <button type="button" class="dpad-btn" id="pad-up" data-dirs="up">▲</button>
-        <button type="button" class="dpad-btn diag" id="pad-up-right" data-dirs="up,right">↗</button>
+        <button type="button" class="dpad-btn diag rot-ur" id="pad-up-right" data-dirs="up,right">▲</button>
         <button type="button" class="dpad-btn" id="pad-left" data-dirs="left">◀</button>
         <div class="dpad-center-empty"></div>
         <button type="button" class="dpad-btn" id="pad-right" data-dirs="right">▶</button>
-        <button type="button" class="dpad-btn diag" id="pad-down-left" data-dirs="down,left">↙</button>
+        <button type="button" class="dpad-btn diag rot-dl" id="pad-down-left" data-dirs="down,left">▲</button>
         <button type="button" class="dpad-btn" id="pad-down" data-dirs="down">▼</button>
-        <button type="button" class="dpad-btn diag" id="pad-down-right" data-dirs="down,right">↘</button>
+        <button type="button" class="dpad-btn diag rot-dr" id="pad-down-right" data-dirs="down,right">▲</button>
       </div>
+
       <div class="dpad-hint">🕹️ 搖桿移動/爬梯/進門 ｜ B 爬行 ｜ A 跳躍/站立</div>
     </div>
 
@@ -512,9 +532,63 @@ let rawCollisionData = null;
 let activeMechanisms = [];
 let activeItems = [];
 let nearestInteractableItem = null;
+let stageSnapshotStr = null; 
+let hasCheckpointSnapshot = false;
+
+// 將當前機關與道具狀態寫入暫存區
+// 將當前機關與道具狀態寫入暫存區 (不再記錄殘血與熱量)
+function saveStageSnapshot() {
+  stageSnapshotStr = JSON.stringify({
+    mechanisms: activeMechanisms,
+    items: activeItems
+  });
+}
+
+// 從暫存區讀取狀態並覆蓋當前實體
+function restoreStageSnapshot() {
+  if (!stageSnapshotStr) return false;
+  try {
+    const snap = JSON.parse(stageSnapshotStr);
+    
+    // 重新建立機關實體 (保留原型鏈上的函式)
+    activeMechanisms = []; window.activeMechanisms = activeMechanisms;
+    snap.mechanisms.forEach(rawMech => {
+      const def = window.GAME_MECHANISMS_REGISTRY[rawMech.type];
+      if (def && typeof def.init === 'function') {
+         // 注意：如果是已經啟動過的，就不呼叫 init，避免覆蓋掉快照的參數
+         if (rawMech.activated === undefined && rawMech.isBurning === undefined) def.init(rawMech);
+      }
+      if (rawMech.texture && cachedEntityImages[rawMech.texture]) {
+         rawMech._img = cachedEntityImages[rawMech.texture];
+      }
+      activeMechanisms.push(rawMech);
+    });
+
+    // 重新建立道具實體
+    activeItems = []; window.activeItems = activeItems;
+    snap.items.forEach(rawItem => {
+      const def = window.GAME_ITEMS_REGISTRY[rawItem.type];
+      if (def && typeof def.init === 'function') {
+         if (rawItem.collected === undefined) def.init(rawItem);
+      }
+      if (rawItem.texture && cachedEntityImages[rawItem.texture]) {
+         rawItem._img = cachedEntityImages[rawItem.texture];
+      }
+      activeItems.push(rawItem);
+    });
+
+    // 💡 修正：移除原本覆蓋 player.hp 與 player.heat 的程式碼！
+    // 讓角色重生時，永遠保持 initPlayerAndEntities() 設定的 100 滿血與 0 熱量
+    return true;
+  } catch (e) {
+    console.warn("還原快照失敗", e);
+    return false;
+  }
+}
+
 
 // 👇 修改開始：加入 STAGE_HELP 狀態與頁碼變數 👇
-const STATE = { TITLE_LOADING: 'TITLE_LOADING', CONTROLS_GUIDE: 'CONTROLS_GUIDE', CHAR_SELECT: 'CHAR_SELECT', STAGE_SELECT: 'STAGE_SELECT', STAGE_LOADING: 'STAGE_LOADING', PLAYING: 'PLAYING', STAGE_HELP: 'STAGE_HELP' };
+const STATE = { TITLE_LOADING: 'TITLE_LOADING', CONTROLS_GUIDE: 'CONTROLS_GUIDE', CHAR_SELECT: 'CHAR_SELECT', STAGE_SELECT: 'STAGE_SELECT', STAGE_LOADING: 'STAGE_LOADING', PLAYING: 'PLAYING', STAGE_HELP: 'STAGE_HELP', RESTART_CONFIRM: 'RESTART_CONFIRM' };
 let gameState = STATE.TITLE_LOADING;
 let helpCurrentPage = 1;
 // 👆 修改結束 👆
@@ -538,6 +612,69 @@ let GROUND_POLYLINES = [], LADDERS = [], SOLID_WALLS = [], FRICTION_ZONES = [];
 let SPAWN_POINT = { x: 1930, y: 792, dir: -1 };
 let GOAL_CONDITION = { xMax: 245, yMax: 575 };
 let rawBgImg = new Image(), isBgReady = false, followCameraMode = true;
+// 👇 新增景深圖變數與 WebGL 引擎變數
+let rawDepthImg = new Image(), isDepthReady = false;
+let bgWebGLCanvas, bgRenderer, bgScene, bgCamera, bgMaterial;
+
+function initWebGLBackground() {
+  if (bgRenderer) return; // 避免重複初始化
+  bgWebGLCanvas = document.createElement('canvas');
+  bgRenderer = new THREE.WebGLRenderer({ canvas: bgWebGLCanvas, antialias: false, alpha: false });
+  bgScene = new THREE.Scene();
+  bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+  bgCamera.position.z = 1;
+
+  bgMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      tDiffuse: { value: null },
+      tDepth: { value: null },
+      uOffset: { value: new THREE.Vector2(0, 0) }
+    },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform sampler2D tDepth;
+      uniform vec2 uOffset;
+      varying vec2 vUv;
+      void main() {
+        float depth = texture2D(tDepth, vUv).r;
+        
+        // 👇 基準點改為 1.0 (純白)
+        // 當 depth 為 1.0 (白) 時，(1.0 - 1.0) = 0，完全不產生視差，精準對齊碰撞框
+        // 當 depth 為 0.0 (黑) 時，(0.0 - 1.0) = -1，產生最大程度的視差
+        // 0.025 是晃動強度，因為基準偏移幅度變大了，這裡可以稍微調小一點讓畫面更自然
+        vec2 displacedUv = vUv + uOffset * (depth - 1.0) * 0.01; 
+        
+        displacedUv = clamp(displacedUv, 0.0, 1.0);
+        gl_FragColor = texture2D(tDiffuse, displacedUv);
+      }
+    `
+
+  });
+  bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMaterial));
+}
+
+function updateWebGLTextures(bgImg, depthImg) {
+  initWebGLBackground();
+  bgWebGLCanvas.width = WORLD_W;
+  bgWebGLCanvas.height = WORLD_H;
+  bgRenderer.setSize(WORLD_W, WORLD_H, false);
+
+  const bgTex = new THREE.Texture(bgImg);
+  bgTex.generateMipmaps = false; // 👈 關閉 Mipmap，防止非 2 的次方圖片導致手機 WebGL 崩潰
+  bgTex.minFilter = THREE.LinearFilter;
+  bgTex.needsUpdate = true;
+
+  const depthTex = new THREE.Texture(depthImg);
+  depthTex.generateMipmaps = false; // 👈 關閉 Mipmap
+  depthTex.minFilter = THREE.LinearFilter;
+  depthTex.needsUpdate = true;
+
+  bgMaterial.uniforms.tDiffuse.value = bgTex;
+  bgMaterial.uniforms.tDepth.value = depthTex;
+  bgMaterial.needsUpdate = true;
+}
+
 
 const PHYS_STAND_H = 132, PHYS_CRAWL_H = 64, PHYS_HALF_W = 16;
 function getStanceHeight(isCrawl) { return isCrawl ? PHYS_CRAWL_H : PHYS_STAND_H; }
@@ -701,6 +838,14 @@ async function loadFromAndroidFolderInput(fileList) {
   const directLoadedCharMap = new Map();
   for (const item of allJsFiles) {
     try {
+      // 👇 新增這段：優先攔截並載入 3D 引擎 👇
+      if (item.file.name.toLowerCase() === 'three.min.js') {
+        await loadVirtualScript(item.file, item.rawRel);
+        stepProgress('載入 3D 引擎: three.min.js');
+        continue;
+      }
+      // 👆 新增結束 👆
+
       const code = await item.file.text();
       if (item.parentFolderLower === 'action' || item.lowerPath.includes('/action/') || code.includes('registerAction') || code.includes('registerCustomAction') || code.includes('CURRENT_ACTION_DATA')) {
         window.CURRENT_ACTION_DATA = null;
@@ -959,6 +1104,8 @@ function instantiateStageEntities(stagePath, cleanFolder, collisionData) {
       activeItems.push(instance);
     }
   }
+  hasCheckpointSnapshot = false;
+  saveStageSnapshot();  
 }
 
 function drawEntities(targetLayer = 'background') {
@@ -1028,8 +1175,45 @@ async function loadAndStartStage(stageIdx) {
       }
       advanceProgress(`已就緒道具: ${it?.type || 'item'}`);
     }
-    stageLoadStepText = `正在下載關卡背景圖 (${st.path}/bg)...`; isBgReady = false; rawBgImg = new Image(); const bgOk = await loadSmartImage(rawBgImg, `${st.path}/bg`, () => { isBgReady = true; }, `${st.folder}/bg`); if (bgOk) isBgReady = true; advanceProgress('關卡資源全部載入完成！');
-    instantiateStageEntities(st.path, st.folder, col); stageLoadProgress = 1.0; stageLoadVisualProg = 1.0; await new Promise(r => setTimeout(r, 120)); resetStage(); gameState = STATE.PLAYING; updateHudStatus();
+    stageLoadStepText = `正在下載關卡背景圖 (${st.path}/bg)...`; 
+    isBgReady = false; rawBgImg = new Image(); 
+    await loadSmartImage(rawBgImg, `${st.path}/bg`, () => { isBgReady = true; }, `${st.folder}/bg`);
+    
+    // 👇 嘗試下載同資料夾下的 depth 圖檔
+    stageLoadStepText = `正在下載關卡背景圖 (${st.path}/bg)...`; 
+    isBgReady = false; rawBgImg = new Image(); 
+    await loadSmartImage(rawBgImg, `${st.path}/bg`, () => { isBgReady = true; }, `${st.folder}/bg`);
+    
+    // 👇 嘗試下載同資料夾下的 depth 圖檔
+    stageLoadStepText = `正在偵測關卡景深圖 (${st.path}/depth)...`; 
+    isDepthReady = false; rawDepthImg = new Image();
+    const depthOk = await loadSmartImage(rawDepthImg, `${st.path}/depth`, () => { isDepthReady = true; }, `${st.folder}/depth`);
+    if (depthOk) isDepthReady = true;
+
+    // 如果兩張圖都存在，就嘗試更新 WebGL 材質
+    if (isBgReady && isDepthReady) {
+        try {
+            // 檢查 Three.js 是否成功載入
+            if (typeof THREE === 'undefined') {
+                throw new Error('Three.js 函式庫未載入 (可能是手機沒有連網，無法下載 CDN)');
+            }
+            
+            updateWebGLTextures(rawBgImg, rawDepthImg);
+            
+            // 👇 如果成功執行到這裡，彈出成功提示 (測試用，確定沒問題後可以刪除這行)
+            // alert('✅ 3D 景深材質建立成功！');
+            
+        } catch (err) {
+            // 👇 將錯誤訊息直接彈出在畫面上，讓我們知道死在哪裡
+            alert('⚠️ 3D 景深啟動失敗：\n' + err.message);
+            
+            console.warn('⚠️ 3D 景深背景啟動失敗，自動降級為一般 2D 背景。原因:', err);
+            isDepthReady = false; 
+        }
+    }
+
+    advanceProgress('關卡資源全部載入完成！');
+    instantiateStageEntities(st.path, st.folder, col); stageLoadProgress = 1.0; stageLoadVisualProg = 1.0; await new Promise(r => setTimeout(r, 120)); initPlayerAndEntities(); gameState = STATE.PLAYING; updateHudStatus();
   } finally { isEnteringStage = false; }
 }
 
@@ -1561,6 +1745,18 @@ function updateMenuLogic(dt) {
     return;
   }
   // 👆 新增結束 👆
+  if (gameState === STATE.RESTART_CONFIRM) {
+    if (wasJustPressed('jump')) { 
+      hasCheckpointSnapshot = false;
+      stageSnapshotStr = null;
+      loadAndStartStage(selectedStageIdx);
+    }
+    if (wasJustPressed('crawl') || wasJustPressed('slap')) { 
+      gameState = STATE.PLAYING;
+    }
+    return;
+  }
+  
   if (gameState === STATE.TITLE_LOADING) {  
     gameBootVisualProg += (gameBootProgress - gameBootVisualProg) * Math.min(1, dt * 14);
     if (isGameBootComplete) {
@@ -1612,8 +1808,27 @@ function updateMenuLogic(dt) {
 
 const particles = [];
 function addSparks(x, y, intense) { for (let i = 0; i < (intense ? 5 : 2); i++) particles.push({ type: 'spark', x: x + (Math.random() - 0.5) * 24, y: y + (Math.random() - 0.5) * 10, vx: (Math.random() - 0.5) * 340, vy: Math.random() * 180 + 20, life: 0.28 + Math.random() * 0.25, maxLife: 0.53, color: intense ? '#ff3b1f' : '#ffe066', r: intense ? 4.2 : 2.8 }); }
-function addSmoke(x, y, isHeavy = false) { for (let i = 0; i < (isHeavy ? 2 : 1); i++) particles.push({ type: 'smoke', x: x + (Math.random() - 0.5) * 36, y: y - 14 - Math.random() * 16, vx: (Math.random() - 0.5) * 135 - player.vx * 0.15, vy: -115 - Math.random() * 125, life: 1.6 + Math.random() * 0.8, maxLife: 2.4, r: 12 + Math.random() * 14 }); }
+
+// 👇 修改開始：大幅度往右吹，並讓煙霧早點消失 👇
+function addSmoke(x, y, isHeavy = false) { 
+  for (let i = 0; i < (isHeavy ? 2 : 1); i++) {
+    particles.push({ 
+      type: 'smoke', 
+      x: x + (Math.random() - 0.5) * 36, 
+      y: y - 14 - Math.random() * 16, 
+      vx: 100 + Math.random() * 120 - player.vx * 0.15,  // 修改這裡：大幅增加 X 軸向右的速度 (100 起跳)
+      vy: -115 - Math.random() * 125, 
+      life: 1.0 + Math.random() * 0.5, // 修改這裡：縮短存活時間，煙霧很快就會消散
+      maxLife: 1.5, 
+      r: 4 + Math.random() * 6 // 修改這裡：顆粒再縮小一點
+    }); 
+  }
+}
+// 👆 修改結束 👆
+
+
 function samplePolylineY(pts, x) {
+
   for (let i = 0; i < pts.length - 1; i++) { const minX = Math.min(pts[i][0], pts[i+1][0]), maxX = Math.max(pts[i][0], pts[i+1][0]); if (x >= minX && x <= maxX) return pts[i+1][0] === pts[i][0] ? pts[i][1] : pts[i][1] + ((x - pts[i][0]) / (pts[i+1][0] - pts[i][0])) * (pts[i+1][1] - pts[i][1]); }
   return null;
 }
@@ -1646,6 +1861,25 @@ function toggleCameraView() { followCameraMode = !followCameraMode; document.get
 function toggleCollisionDebug() { showDebugCollision = !showDebugCollision; const btn = document.getElementById('btn-debug-col'); btn.textContent = `📐 碰撞:${showDebugCollision ? '開' : '關'}`; btn.style.background = showDebugCollision ? '#8f2447' : '#2b2320'; btn.style.color = showDebugCollision ? '#ffffff' : '#f5b041'; }
 
 function resetStage() {
+  if (player.dead) {
+      initPlayerAndEntities();
+      gameState = STATE.PLAYING;
+      updateHudStatus();
+      return;
+  }
+  
+  // 💡 修正：移除 hasCheckpointSnapshot 的限制，只要在遊玩中按重來，就一定會跳出確認視窗
+  if (gameState === STATE.PLAYING) {
+      gameState = STATE.RESTART_CONFIRM;
+  } else {
+      loadAndStartStage(selectedStageIdx);
+  }
+}
+
+
+
+// 負責實體與變數歸零的核心函數
+function initPlayerAndEntities() {
   const c = getActiveCharStats();
   player.x = SPAWN_POINT.x ?? 2450; player.y = SPAWN_POINT.y ?? 215; player.vx = player.vy = 0; player.dir = SPAWN_POINT.dir ?? -1;
   player.grounded = true; player.crawling = player.climbing = player.raisingHands = player.ledgeClimbing = player.ledgeForceCrawl = false;
@@ -1670,7 +1904,11 @@ function resetStage() {
   }
   player.onFire = player.slapping = player.won = player.dying = false; player.deathTimer = 0; player.dead = false;
   player.hp = 100; player.heat = player.slapProgress = 0; player.maxHeat = c.ignition * 25; particles.length = 0; nearestInteractableItem = null;
-  const st = loadedStages[selectedStageIdx]; if (st && rawCollisionData) instantiateStageEntities(st.path, st.folder, rawCollisionData);
+  // const st = loadedStages[selectedStageIdx]; if (st && rawCollisionData) instantiateStageEntities(st.path, st.folder, rawCollisionData);
+  
+  if (stageSnapshotStr) {
+      restoreStageSnapshot();
+  }
 }
 
 function shouldWallBlockPlayer(w, pTop, pBot) {
@@ -2158,15 +2396,17 @@ function updatePhysics(dt) {
 
   const headBlocked = isHeadBlockedToStand(player.x, player.y);
 
-  let activeLadder = null;
+    let activeLadder = null;
   for (const lad of LADDERS) {
-    if (player.x >= lad.x1 - 15 && player.x <= lad.x2 + 15 && player.y <= lad.yBottom + 12 && player.y >= lad.yTop - 12) {
+    // 💡 修正：將判定範圍改大，左右增加 16 像素的寬容度，只要角色底部中點進入此加寬範圍即可判定
+    if (player.x >= lad.x1 - 16 && player.x <= lad.x2 + 16 && player.y <= lad.yBottom + 12 && player.y >= lad.yTop - 12) {
       activeLadder = lad;
       break;
     }
   }
 
-  const isAtLadderTopToClimbDown = activeLadder && (player.x >= activeLadder.x1 - 6 && player.x <= activeLadder.x2 + 6) && (player.y < activeLadder.yBottom - 10);
+  // 往下爬的判定也同步放寬寬容度，確保不會卡住
+  const isAtLadderTopToClimbDown = activeLadder && (player.x >= activeLadder.x1 - 16 && player.x <= activeLadder.x2 + 16) && (player.y < activeLadder.yBottom - 10);
   if (input.down && !player.lockDefaultMove && !isAtLadderTopToClimbDown && !player.crawling && !player.climbing && !player.ledgeClimbing && !player.ledgeClimbingDown) {
     const ledgeDown = findClimbDownLedgePlatform();
     if (ledgeDown) {
@@ -2186,12 +2426,17 @@ function updatePhysics(dt) {
   }
 
   if (activeLadder && !player.crawling && !player.lockDefaultMove) {
-    if ((input.up && player.y > activeLadder.yTop + 4) || (input.down && player.y < activeLadder.yBottom - 4)) {
-      player.climbing = true;
-      player.crawling = false;
-      player.vx = 0;
+    // 💡 保留原本的設計：確保沒有同時按下左或右 (必須是純粹的上/下鍵，排除斜向移動)
+    if (!input.left && !input.right) {
+      if ((input.up && player.y > activeLadder.yTop + 4) || (input.down && player.y < activeLadder.yBottom - 4)) {
+        player.climbing = true;
+        player.crawling = false;
+        player.vx = 0;
+      }
     }
   }
+
+
 
   player.slapping = input.slap && player.onFire;
 
@@ -2341,30 +2586,50 @@ function updatePhysics(dt) {
       player.fallStartY = prevY;
     }
 
+    // 💡 新增：推算上一幀的 X 座標，用來查舊的地板高度
+    const prevX = player.x - (player.vx || 0) * dt;
+
     for (const poly of GROUND_POLYLINES) {
       const gY = samplePolylineY(poly.pts, player.x);
-      if (gY !== null && prevY <= gY + 28 && player.y >= gY - 4 && player.vy >= 0) {
+      const prevGy = samplePolylineY(poly.pts, prevX) ?? gY;
+      
+      // 💡 向量相對位移判定 (取代原本死板的 player.vy >= 0)
+      // 檢查角色相對於地形是否「正在往下切入」(即地形上升的速度 > 角色跳躍的速度)
+      const isFallingRelativeToGround = (player.y - prevY) >= (gY - prevGy) - 0.01;
+
+      // 完美結合「軌跡交叉」與「單向平台」判定
+      if (gY !== null && prevY <= prevGy + 38 && player.y >= gY - 6 && isFallingRelativeToGround) {
         player.y = gY;
         player.vy = 0;
         player.grounded = true;
         break;
       }
     }
-    if (!player.grounded) {
-      for (const m of activeMechanisms) {
-        if (m.hidden) continue;
-        const def = window.GAME_MECHANISMS_REGISTRY[m.type];
-      if ((m.solid ?? (def && def.solid) ?? (m.type && (m.type.includes('platform') || m.type.includes('button')))) && player.x + curHalfW * 0.8 >= m.x && player.x - curHalfW * 0.8 <= m.x + m.width) {
-          if (prevY <= (m.prevY ?? m.y) + 28 && player.y >= m.y - 6 && player.vy >= 0) {
+    
+    for (const m of activeMechanisms) {
+      if (m.hidden) continue;
+      const def = window.GAME_MECHANISMS_REGISTRY[m.type];
+      const isPlatformSurface = (m.solid ?? (def && def.solid) ?? (m.type && (m.type.includes('platform') || m.type.includes('button'))));
+      
+      // 改用 player.x (角色底部中心點) 判定是否落在平台上
+      if (isPlatformSurface && player.x >= m.x && player.x <= m.x + m.width) {
+        const prevMechY = m.prevY ?? m.y;
+        const isFallingRelativeToMech = (player.y - prevY) >= (m.y - prevMechY) - 0.01;
+
+        if (prevY <= prevMechY + 28 && player.y >= m.y - 6 && isFallingRelativeToMech) {
+          // 若同時有地面與電梯，取較高（Y 較小）的表面站立
+          if (!player.grounded || m.y <= player.y) {
             player.y = m.y;
             player.vy = 0;
             player.grounded = true;
             if (m.dx) player.x = Math.max(35, Math.min(WORLD_W - 35, player.x + m.dx));
-            break;
           }
+          break;
         }
       }
     }
+
+
 
     if (player.grounded && player.fallStartY !== null) {
       const fallDist = player.y - player.fallStartY;
@@ -2482,7 +2747,40 @@ function updatePhysics(dt) {
   const mFact = (Math.abs(player.vx) + Math.abs(player.vy) * 0.5) / 200;
   if (player.scraping && mFact > 0.05) { player.heat = Math.min(player.maxHeat, player.heat + frictionMul * 26 * Math.max(0.45, mFact) * dt); if (Math.random() < (intenseSparks ? 0.85 : 0.55)) addSparks(player.x, player.y - curH + 8, intenseSparks); } else if (!player.onFire) player.heat = Math.max(0, player.heat - 6 * dt);
   if (player.heat >= player.maxHeat && !player.onFire) player.onFire = true;
-  if (player.onFire) { player.hp = Math.max(0, player.hp - (60 / c.resist) * dt); if (Math.random() < 0.45) addSmoke(player.x, player.y - curH - 10, false); if (Math.random() < 0.35) addSparks(player.x, player.y - curH - 6, true); }
+  if (player.onFire) { 
+    player.hp = Math.max(0, player.hp - (60 / c.resist) * dt); 
+    if (Math.random() < 0.45) addSmoke(player.x, player.y - curH - 10, false); 
+    if (Math.random() < 0.35) addSparks(player.x, player.y - curH - 6, true); 
+    
+    // 👇 新增：角色著火時，主動去點燃周圍碰到的機關與道具 👇
+    // 1. 掃描機關 (如木頭堆)
+    for (const m of activeMechanisms) {
+      if (m.hidden) continue;
+      const pad = 16;
+      if (player.x + curHalfW >= m.x - pad && player.x - curHalfW <= m.x + m.width + pad &&
+          player.y >= m.y - pad && player.y - curH - 65 <= m.y + m.height + pad) {
+        const def = window.GAME_MECHANISMS_REGISTRY[m.type];
+        if (def && typeof def.ignite === 'function') {
+          def.ignite(m, pluginCtx, true, dt); // 傳入 dt 支援延遲起火計算
+        }
+      }
+    }
+    // 2. 掃描道具 (如地上的油球)
+    for (const it of activeItems) {
+      if (it.hidden || (it.collected && !it.isHeld && !it.isThrown)) continue;
+      if (it.x + it.width >= player.x - curHalfW - 14 && it.x <= player.x + curHalfW + 14 &&
+          it.y + it.height >= player.y - curH - 14 && it.y <= player.y + 10) {
+        const def = window.GAME_ITEMS_REGISTRY[it.type];
+        if (def && typeof def.ignite === 'function') {
+          def.ignite(it, pluginCtx, true, dt);
+        } else if (!it.isBurning) {
+          it.isBurning = true;
+        }
+      }
+    }
+    // 👆 新增結束 👆
+  }
+
   if (player.slapping) { player.slapProgress += dt / c.extinguish; player.heat = Math.max(0, player.maxHeat * (1 - player.slapProgress)); if (Math.random() < 0.85) addSmoke(player.x, player.y - curH + 6, true); if (player.slapProgress >= 1) { player.onFire = false; player.heat = 0; player.slapProgress = 0; } } else { player.slapProgress = player.onFire ? Math.max(0, player.slapProgress - 0.4 * dt) : 0; }
   if (player.x >= (GOAL_CONDITION.xMin ?? -9999) && player.x <= (GOAL_CONDITION.xMax ?? 245) && player.y >= (GOAL_CONDITION.yMin ?? -9999) && player.y <= (GOAL_CONDITION.yMax ?? 575) && !player.dead && !player.dying) { player.won = true; player.onFire = false; }
   const animRate = player.customAnimSpeed ?? (Math.abs(player.vx) > 5 || player.climbing ? (player.crawling ? 6.5 : 11) : 2);
@@ -3186,7 +3484,40 @@ function drawStageLoadingScreen(dt) {
   ctx.save(); ctx.translate(cx, cy - 55); ctx.strokeStyle = 'rgba(255, 202, 107, 0.18)'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, 0, 52, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = '#f5b041'; ctx.lineCap = 'round'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(0, 0, 52, now, now + Math.PI * 1.35); ctx.stroke(); ctx.strokeStyle = '#ff4d3d'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(0, 0, 36, -now * 1.6, -now * 1.6 + Math.PI * 1.1); ctx.stroke(); const pct = Math.min(100, Math.round(stageLoadVisualProg * 100)); ctx.fillStyle = '#ffffff'; ctx.font = '900 22px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`${pct}%`, 0, 0); ctx.restore();
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = '#ffca6b'; ctx.font = '900 30px "Microsoft JhengHei"'; ctx.fillText(`⏳ 正在載入 ${stageLoadTitleText}`, cx, cy + 45); const barW = 540, barH = 26, barX = cx - barW / 2, barY = cy + 75; ctx.fillStyle = '#09070c'; ctx.strokeStyle = '#5c4b51'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 13); ctx.fill(); ctx.stroke(); const fillW = Math.max(16, (barW - 8) * Math.min(1, stageLoadVisualProg)), barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0); barGrad.addColorStop(0, '#f39c12'); barGrad.addColorStop(0.6, '#ffca6b'); barGrad.addColorStop(1, '#2ecc71'); ctx.fillStyle = barGrad; ctx.beginPath(); ctx.roundRect(barX + 4, barY + 4, fillW, barH - 8, 9); ctx.fill(); ctx.fillStyle = '#cfc4d8'; ctx.font = 'bold 18px "Microsoft JhengHei"'; ctx.fillText(stageLoadStepText, cx, barY + 56); ctx.restore();
 }
-function drawScene() { if (isBgReady) ctx.drawImage(rawBgImg, 0, 0, WORLD_W, WORLD_H); else { ctx.fillStyle = '#181210'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); } }
+function drawScene() { 
+  if (isBgReady && isDepthReady && bgWebGLCanvas) {
+    // 👇 計算當前攝影機 (視窗正中心) 在遊戲世界中的絕對座標
+    let camX = player.x;
+    let camY = player.y - 90;
+    if (followCameraMode) {
+      const scale = 1.05;
+      const viewW = canvas.width / scale;
+      const viewH = canvas.height / scale;
+      camX = Math.max(viewW / 2, Math.min(WORLD_W - viewW / 2, player.x));
+      camY = Math.max(viewH / 2, Math.min(WORLD_H - viewH / 2, player.y - 90));
+    } else {
+      camX = WORLD_W / 2;
+      camY = WORLD_H / 2;
+    }
+
+    // 改為以「視窗中心 (攝影機位置)」來映射 -1.0 到 1.0 的偏移量
+    let targetX = (camX / WORLD_W) * 2.0 - 1.0;
+    let targetY = -((camY / WORLD_H) * 2.0 - 1.0); 
+
+    bgMaterial.uniforms.uOffset.value.set(targetX, targetY);
+    bgRenderer.render(bgScene, bgCamera);
+
+    // 把算好 3D 透視的隱藏畫布，貼到遊戲原本的 2D 畫布上
+    ctx.drawImage(bgWebGLCanvas, 0, 0, WORLD_W, WORLD_H);
+  } else if (isBgReady) {
+    // 如果沒有景深圖，維持原本的一般靜態背景
+    ctx.drawImage(rawBgImg, 0, 0, WORLD_W, WORLD_H); 
+  } else { 
+    ctx.fillStyle = '#181210'; 
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H); 
+  } 
+}
+
 
 function drawDebugCollisionOverlay() {
   if (!showDebugCollision) return; ctx.save();
@@ -3194,7 +3525,7 @@ function drawDebugCollisionOverlay() {
   for (const w of SOLID_WALLS) { const wallX = w.x !== undefined ? w.x : ((w.x1 + w.x2) * 0.5); ctx.strokeStyle = '#ff2a55'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(wallX, w.yTop); ctx.lineTo(wallX, w.yBottom); ctx.stroke(); ctx.fillStyle = '#ff2a55'; ctx.beginPath(); ctx.arc(wallX, w.yTop, 4, 0, Math.PI * 2); ctx.arc(wallX, w.yBottom, 4, 0, Math.PI * 2); ctx.fill(); }
   for (const lad of LADDERS) { ctx.fillStyle = 'rgba(0, 210, 255, 0.22)'; ctx.strokeStyle = '#00e1ff'; ctx.lineWidth = 2.5; ctx.fillRect(lad.x1, lad.yTop, lad.x2 - lad.x1, lad.yBottom - lad.yTop); ctx.strokeRect(lad.x1, lad.yTop, lad.x2 - lad.x1, lad.yBottom - lad.yTop); ctx.strokeStyle = '#ffee00'; ctx.beginPath(); ctx.moveTo(lad.botCenterX ?? (lad.x1 + lad.x2) * 0.5, lad.yBottom); ctx.lineTo(lad.topCenterX ?? (lad.x1 + lad.x2) * 0.5, lad.yTop); ctx.stroke(); }
   for (const poly of GROUND_POLYLINES) { if (!poly.pts || poly.pts.length < 2) continue; ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 4.5; ctx.beginPath(); poly.pts.forEach((p, i) => i===0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])); ctx.stroke(); for (const p of poly.pts) { ctx.fillStyle = '#00ff66'; ctx.beginPath(); ctx.arc(p[0], p[1], 5.5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#b8ffcf'; ctx.font = 'bold 12px monospace'; ctx.fillText(`(${p[0]},${p[1]})`, p[0], p[1] + 16); } }
-  for (const m of activeMechanisms) { const isFg = (m.layer === 'foreground') || (m.type === 'foreground_mask'); ctx.fillStyle = isFg ? 'rgba(255, 140, 0, 0.26)' : 'rgba(74, 105, 189, 0.32)'; ctx.strokeStyle = isFg ? '#ff9f43' : '#70a1ff'; ctx.lineWidth = 2.5; if (isFg) ctx.setLineDash([8, 4]); ctx.fillRect(m.x, m.y, m.width, m.height); ctx.strokeRect(m.x, m.y, m.width, m.height); ctx.setLineDash([]); ctx.fillStyle = isFg ? '#ffbe76' : '#70a1ff'; ctx.font = 'bold 13px monospace'; ctx.fillText(isFg ? `🟠遮罩:${m.type}` : `⚙️${m.type}`, m.x + m.width / 2, m.y - 6); }
+  for (const m of activeMechanisms) { const def = window.GAME_MECHANISMS_REGISTRY[m.type]; const isFg = (m.layer === 'foreground') || (def && def.isForeground) || (m.type === 'foreground_mask'); ctx.fillStyle = isFg ? 'rgba(255, 140, 0, 0.26)' : 'rgba(74, 105, 189, 0.32)'; ctx.strokeStyle = isFg ? '#ff9f43' : '#70a1ff'; ctx.lineWidth = 2.5; if (isFg) ctx.setLineDash([8, 4]); ctx.fillRect(m.x, m.y, m.width, m.height); ctx.strokeRect(m.x, m.y, m.width, m.height); ctx.setLineDash([]); ctx.fillStyle = isFg ? '#ffbe76' : '#70a1ff'; ctx.font = 'bold 13px monospace'; ctx.fillText(isFg ? `🟠遮罩:${m.type}` : `⚙️${m.type}`, m.x + m.width / 2, m.y - 6); }
   for (const it of activeItems) { if (it.collected && !it.isHeld && !it.isThrown) continue; ctx.fillStyle = 'rgba(11, 232, 129, 0.32)'; ctx.strokeStyle = '#0be881'; ctx.lineWidth = 2.5; ctx.fillRect(it.x, it.y, it.width, it.height); ctx.strokeRect(it.x, it.y, it.width, it.height); ctx.fillStyle = '#0be881'; ctx.font = 'bold 13px monospace'; ctx.fillText(`🎁${it.type}`, it.x + it.width / 2, it.y - 6); }
   const gx1 = Math.max(0, GOAL_CONDITION.xMin ?? 0), gx2 = Math.min(WORLD_W, GOAL_CONDITION.xMax ?? 245), gy1 = Math.max(0, GOAL_CONDITION.yMin ?? 0), gy2 = Math.min(WORLD_H, GOAL_CONDITION.yMax ?? 575);
   ctx.fillStyle = 'rgba(46, 204, 113, 0.28)'; ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.fillRect(gx1, gy1, gx2 - gx1, gy2 - gy1); ctx.strokeRect(gx1, gy1, gx2 - gx1, gy2 - gy1); ctx.fillStyle = '#2ecc71'; ctx.font = '900 18px "Microsoft JhengHei"'; ctx.fillText(`🏁 終點判定區`, (gx1 + gx2) / 2, gy1 + 28);
@@ -3653,21 +3984,43 @@ function drawPlayerStickman() {
 
 
   if (nearestInteractableItem && !player.holdingItem && !player.dying) {
-    const promptTxt = nearestInteractableItem.item.promptText || nearestInteractableItem.def.promptText || '拿取';
     ctx.save();
-    ctx.font = '900 15px "Microsoft JhengHei"';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(16, 14, 24, 0.88)';
-    ctx.strokeStyle = '#3498db';
-    ctx.lineWidth = 2;
+    const promptScale = 1.6;
+    const promptRadius = 11 * promptScale;
+    
+    // 修正：使用角色頭部的相對座標 (0 代表角色 X 軸中心，hy - r 代表頭頂高度)
+    const cx = 0;
+    const cy = hy - r - 28; // 微調高度，剛好在頭頂上方
+    
+    // 繪製與 X 按鈕風格相同的圓形底座
+    const grad = ctx.createRadialGradient(cx - promptRadius * 0.28, cy - promptRadius * 0.28, promptRadius * 0.1, cx, cy, promptRadius);
+    grad.addColorStop(0, '#383542');
+    grad.addColorStop(0.65, '#191720');
+    grad.addColorStop(1, '#0d0c12');
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = '#2874a6'; // X 的藍色邊框
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 6;
     ctx.beginPath();
-    ctx.roundRect(-48, hy - r - 42, 96, 26, 13);
+    ctx.arc(cx, cy, promptRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#6cb0ff';
-    ctx.fillText(`[X] ${promptTxt}`, 0, hy - r - 24);
+    ctx.shadowBlur = 0;
+
+    // X 文字
+    ctx.fillStyle = '#3498db'; 
+    ctx.shadowColor = 'rgba(52, 152, 219, 0.45)';
+    ctx.shadowBlur = 8;
+    ctx.font = `900 ${Math.round(promptRadius * 1.15)}px "Segoe UI", "Arial Black", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('X', cx, cy + 1);
+    
     ctx.restore();
   }
+
+
   if (player.activeCustomAction && typeof player.activeCustomAction.draw === 'function') {
     player.activeCustomAction.draw(ctx, player, c);
   }
@@ -3685,9 +4038,16 @@ function drawEffects() {
     } else if (p.type === 'spark') { 
       ctx.fillStyle = p.color; ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); 
     } else { 
-      ctx.fillStyle = `rgba(30, 26, 25, ${a * 0.82})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (2.6 - a * 1.6), 0, Math.PI * 2); ctx.fill(); 
+      // 👇 修改開始：再次降低透明度 👇
+      // 將原本的 a * 0.55 改為 a * 0.22，這樣煙霧就會非常淡
+      ctx.fillStyle = `rgba(140, 140, 145, ${a * 0.22})`; 
+      ctx.beginPath(); 
+      ctx.arc(p.x, p.y, p.r * (2.6 - a * 1.6), 0, Math.PI * 2); 
+      ctx.fill(); 
+      // 👆 修改結束 👆
     }
     ctx.restore();
+
   }
 }
 
@@ -3797,9 +4157,9 @@ function loop(now) {
   else if (gameState === STATE.CHAR_SELECT) { updateMenuLogic(dt); drawCharacterSelectScreen(); }
   else if (gameState === STATE.STAGE_SELECT) { updateMenuLogic(dt); drawStageSelectScreen(); }
   else if (gameState === STATE.STAGE_LOADING) { drawStageLoadingScreen(dt); }
-  /* 👇 修改開始：加入 STAGE_HELP 迴圈處理 👇 */
-  else if (gameState === STATE.PLAYING || gameState === STATE.STAGE_HELP) {
-    if (gameState === STATE.STAGE_HELP) updateMenuLogic(dt);
+  /* 👇 修改開始：加入 STAGE_HELP 與 RESTART_CONFIRM 迴圈處理 👇 */
+  else if (gameState === STATE.PLAYING || gameState === STATE.STAGE_HELP || gameState === STATE.RESTART_CONFIRM) {
+    if (gameState === STATE.STAGE_HELP || gameState === STATE.RESTART_CONFIRM) updateMenuLogic(dt);
     else updatePhysics(dt);
     ctx.save();
     if (followCameraMode) { const scale = 1.05, viewW = canvas.width / scale, viewH = canvas.height / scale, camX = Math.max(viewW / 2, Math.min(WORLD_W - viewW / 2, player.x)), camY = Math.max(viewH / 2, Math.min(WORLD_H - viewH / 2, player.y - 90)); ctx.scale(scale, scale); ctx.translate(viewW / 2 - camX, viewH / 2 - camY); }
@@ -3807,6 +4167,70 @@ function loop(now) {
     drawScene(); drawEntities('background'); drawPlayerStickman(); drawEntities('foreground'); drawDebugCollisionOverlay(); drawEffects(); ctx.restore(); drawEndBanner();
     
     if (gameState === STATE.STAGE_HELP) drawStageHelpOverlay(); // 疊加畫出說明視窗
+    // 👇 新增：繪製重來確認視窗 👇
+    if (gameState === STATE.RESTART_CONFIRM) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const boxW = 560, boxH = 220;
+        const bx = (canvas.width - boxW) / 2, by = (canvas.height - boxH) / 2;
+
+        ctx.fillStyle = 'rgba(30, 20, 24, 0.95)';
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = 'rgba(231, 76, 60, 0.5)';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, boxW, boxH, 16);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f5b041';
+        ctx.font = '900 28px "Microsoft JhengHei"';
+        ctx.fillText('確定要重玩關卡嗎？', canvas.width / 2, by + 55);
+        ctx.fillStyle = '#ff7a6b';
+        ctx.font = 'bold 20px "Microsoft JhengHei"';
+        ctx.fillText('記錄點狀態將會遺失！', canvas.width / 2, by + 95);
+
+        // 畫 A / B 按鈕
+        drawXboxBtnIcon(bx + 140, by + 160, 18, 'A');
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 22px "Microsoft JhengHei"';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('確定重玩', bx + 168, by + 161);
+
+        drawXboxBtnIcon(bx + 340, by + 160, 18, 'B');
+        ctx.fillText('取消', bx + 368, by + 161);
+
+        ctx.restore();
+    }
+    // 👆 新增結束 👆
+
+    // 👇 新增：成功啟用 WebGL 景深時，在左上角繪製 3D 標示 👇
+    if (isBgReady && isDepthReady && bgWebGLCanvas) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      ctx.strokeStyle = '#2ecc71';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      // 在畫布左上角畫一個圓角半透明黑底小框
+      ctx.roundRect(16, 16, 42, 24, 6);
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.fillStyle = '#2ecc71';
+      ctx.font = '900 14px "Arial Black", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('3D', 37, 29);
+      ctx.restore();
+    }
+    // 👆 新增結束 👆
+
   }
   /* 👆 修改結束 👆 */
   syncPrevInput(); requestAnimationFrame(loop);

@@ -25,9 +25,10 @@
       const input = pluginCtx.input;
       const wasJustPressed = pluginCtx.wasJustPressed;
       const item = player.holdingItem;
-      const hasValidHeldItem = Boolean(item && !item.exploded && !item.hidden);
+      // 增加條件：必須持有有效道具，且該道具必須是 oil_ball
+      const hasValidHeldItem = Boolean(item && !item.exploded && !item.hidden && item.type === "oil_ball");
 
-      // 若手上已經沒有道具（例如已投出或燒盡消失），立即歸位
+      // 若手上沒有油球（例如拿著水球，或已投出、燒盡消失），立即歸位
       if (!hasValidHeldItem) {
         if (player.ignitingItem || player.igniteReachK > 0) {
           player.ignitingItem = false;
@@ -206,27 +207,44 @@
       const reachK = player._igniteVisualK || 0;
 
       // ==========================================
-      // A. 只要手上有拿著道具且在火源 80px 範圍內 (尚未按住伸手時) -> 頭頂顯示「[Y] 點火」提示框
+      // A. 只要手上拿著油球且在火源 80px 範圍內 (尚未按住伸手時) -> 頭頂顯示 Y 按鈕圖示
       // ==========================================
       if (reachK === 0 && player.nearFireTarget && player.holdingItem && !player.holdingItem.exploded && !player.holdingItem.hidden && !player.onFire) {
         const promptY = player.crawling ? -(r * 2 + 52) : -(bh + r * 2 + 68);
         ctx.save();
-        ctx.font = '900 15px "Microsoft JhengHei"';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(24, 18, 12, 0.92)';
-        ctx.strokeStyle = '#f1c40f';
-        ctx.lineWidth = 2.2;
+        
+        const promptScale = 1.6;
+        const promptRadius = 11 * promptScale;
+        
+        // 繪製圓形底座
+        const grad = ctx.createRadialGradient(-promptRadius * 0.28, promptY - promptRadius * 0.28, promptRadius * 0.1, 0, promptY, promptRadius);
+        grad.addColorStop(0, '#383542');
+        grad.addColorStop(0.65, '#191720');
+        grad.addColorStop(1, '#0d0c12');
+        ctx.fillStyle = grad;
+        ctx.strokeStyle = '#b7950b'; // Y 按鈕的黃色邊框
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.roundRect(-52, promptY - 14, 104, 28, 14);
+        ctx.arc(0, promptY, promptRadius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+        ctx.shadowBlur = 0;
 
-        ctx.fillStyle = '#ffdd59';
-        ctx.fillText('[Y] 點火', 0, promptY + 1);
+        // 繪製 Y 文字
+        ctx.fillStyle = '#f1c40f';
+        ctx.shadowColor = 'rgba(241, 196, 15, 0.45)';
+        ctx.shadowBlur = 8;
+        ctx.font = `900 ${Math.round(promptRadius * 1.15)}px "Segoe UI", "Arial Black", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Y', 0, promptY + 1);
+        
         ctx.restore();
         return null; // 交還給預設骨架繪製身體
       }
+
 
       // ==========================================
       // B. 按住 Y 伸手或放開縮回期間：繪製朝火源方向 (前/斜上/正上) 伸展的雙手與身體微傾骨架

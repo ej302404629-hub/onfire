@@ -50,7 +50,7 @@ window.registerMechanismType("fire_trap", {
       const flameTop = mech.y - mech.flameHeight + 10;
       const flameBot = mech.y + mech.height;
 
-      // 碰到火焰，且尚未死亡/瀕死時，觸發 3 秒燒焦灰燼動畫
+      // 1. 玩家本體碰到火焰，且尚未死亡/瀕死時，觸發 3 秒燒焦灰燼動畫
       if (!player.dying && !player.dead && !player.won &&
           player.x + playerHalfW > mech.x + 4 && player.x - playerHalfW < mech.x + mech.width - 4 &&
           pBot > flameTop && pTop < flameBot) {
@@ -66,8 +66,46 @@ window.registerMechanismType("fire_trap", {
           helpers.addSparks(player.x, player.y - 45, true);
         }
       }
+
+      // 2. 偵測場上的道具 (處理水球靠近破裂/滅火邏輯)
+      if (helpers && Array.isArray(helpers.items)) {
+        for (const item of helpers.items) {
+          if (item.hidden || (item.collected && !item.isHeld && !item.isThrown)) continue;
+          
+          const holdOffX = player.customHold?.x ?? 22;
+          const holdOffY = player.customHold?.y ?? (player.crawling ? 18 : 64);
+          const ix = item.isHeld ? (player.x + player.dir * holdOffX - item.width * 0.5) : item.x;
+          const iy = item.isHeld ? (player.y - holdOffY - item.height * 0.5) : item.y;
+
+          const hitFire = (ix + item.width >= mech.x && ix <= mech.x + mech.width &&
+                           iy + item.height >= flameTop && iy <= flameBot);
+
+          if (hitFire) {
+            if (item.type === "water_ball") {
+              const waterDef = window.GAME_ITEMS_REGISTRY["water_ball"];
+              if (item.isHeld) {
+                // 拿在手上的情況：來不及滅火就先被燒破，且觸發玩家後退
+                if (waterDef && typeof waterDef.explode === 'function') {
+                  // 傳入 player 參數來觸發驚嚇動畫
+                  waterDef.explode(item, helpers, player); 
+                  if (player.holdingItem === item) {
+                    player.holdingItem = null;
+                  }
+                }
+              } else {
+                // 丟出去的情況：成功打中火台，撲滅火焰並破裂
+                this.onWaterHit(mech, item, helpers);
+                if (waterDef && typeof waterDef.explode === 'function') {
+                  waterDef.explode(item, helpers);
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
+    // 處理火源熄滅的過渡動畫
     if (mech.isExtinguishing) {
       mech.extinguishProgress += dt / 0.75;
 
@@ -89,6 +127,7 @@ window.registerMechanismType("fire_trap", {
       }
     }
 
+    // 更新水蒸汽粒子
     for (let i = mech.steamParticles.length - 1; i >= 0; i--) {
       const sp = mech.steamParticles[i];
       sp.x += sp.vx * dt;

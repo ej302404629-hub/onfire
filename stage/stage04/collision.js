@@ -6,7 +6,8 @@ window.STAGE_COLLISION = {
     "run_and_slide",
     "rope_climb",
     "switch_char",
-    "ignite_item"
+    "ignite_item",
+    "z_slope_physics_manager"
   ],
   "playerSpawn": {
     "x": 186,
@@ -93,11 +94,11 @@ window.STAGE_COLLISION = {
           488
         ],
         [
-          1389,
+          1385,
           491
         ],
         [
-          1505,
+          1500,
           620
         ],
         [
@@ -258,18 +259,21 @@ window.STAGE_COLLISION = {
     {
       "type": "slide_slope",
       "id": "b_purple_slope",
-      "x1": 1389,
+      "x1": 1385,
       "y1": 491,
-      "x2": 1505,
+      "x2": 1500,
       "y2": 620
     },
     {
       "type": "wood_pile",
       "id": "wood_pile_1",
-      "x": 1325,
+      "x": 1308,
       "y": 607,
-      "width": 75,
-      "height": 62
+      "width": 107,
+      "height": 62,
+      "burnDuration": 25,
+      "igniteDelay": 3,
+      "coolingSmokeTimer": 1
     },
     {
       "type": "wood_pile",
@@ -345,7 +349,7 @@ window.STAGE_COLLISION = {
       "type": "auto_gate",
       "id": "auto_gate_157",
       "x": 1042,
-      "y": 601,
+      "y": 602,
       "width": 24,
       "height": 200,
       "openDir": "up",
@@ -354,6 +358,16 @@ window.STAGE_COLLISION = {
       "gateSpeed": 1.6,
       "closeDelay": 0,
       "gateSpeedClose": 0.7
+    },
+    {
+      "width": 64,
+      "height": 64,
+      "spawnDir": 1,
+      "texture": "image/flag.png",
+      "type": "checkpoint",
+      "id": "checkpoint_0404",
+      "x": 1108,
+      "y": 742
     }
   ],
   "items": [
