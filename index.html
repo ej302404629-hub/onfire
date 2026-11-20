@@ -1824,29 +1824,70 @@ document.addEventListener('touchstart', function autoFsOnFirstTouch(e) {
   }
 }, { passive: true });
 
+let gamepadDpadAxisSafe = {};
+let gamepadRadialHatReady = {};
+let gamepadMovedKnob = false;
+let gamepadDebugText = '';
+
+function releaseGamepadInputs() {
+  const map = [
+    ['left',  'pad-left'],
+    ['right', 'pad-right'],
+    ['up',    'pad-up'],
+    ['down',  'pad-down'],
+    ['a',     'btn-a', 'jump'],
+    ['b',     'btn-b', 'crawl'],
+    ['x',     'btn-x', 'climb'],
+    ['y',     'btn-y', 'slap']
+  ];
+  for (const [prevKey, btnId, inputKey] of map) {
+    if (prevGamepadState[prevKey]) {
+      input[inputKey || prevKey] = false;
+      const el = document.getElementById(btnId);
+      if (el) el.classList.remove('pressed');
+      prevGamepadState[prevKey] = false;
+    }
+  }
+  if (gamepadMovedKnob) {
+    const joyKnob = document.getElementById('joystick-knob');
+    if (joyKnob && !joyKnob.classList.contains('active')) {
+      joyKnob.style.transform = 'translate(0px, 0px)';
+    }
+    gamepadMovedKnob = false;
+  }
+}
+
 window.addEventListener('gamepadconnected', (e) => {
-  gamepadAxisBaseline[e.gamepad.index] = (e.gamepad.axes || []).slice();
+  delete gamepadDpadAxisSafe[e.gamepad.index];
+  delete gamepadRadialHatReady[e.gamepad.index];
   updateHudStatus();
 });
 window.addEventListener('gamepaddisconnected', (e) => {
   delete gamepadAxisBaseline[e.gamepad.index];
+  delete gamepadDpadAxisSafe[e.gamepad.index];
+  delete gamepadRadialHatReady[e.gamepad.index];
+  gamepadDebugText = '';
+  releaseGamepadInputs();
   updateHudStatus();
 });
 
 function pollHardwareGamepad() {
-  if (!navigator.getGamepads) return;
-  const pads = navigator.getGamepads();
+  const getPads = navigator.getGamepads || navigator.webkitGetGamepads;
+  if (!getPads) return;
+  const pads = getPads.call(navigator);
   if (!pads) return;
 
   const deadzone = 0.28;
   let gLeft = false, gRight = false, gUp = false, gDown = false;
   let gA = false, gB = false, gX = false, gY = false;
   let hasAnyPad = false;
+  let visualStickX = 0, visualStickY = 0;
+  let debugSummary = '';
 
   const isBtnPressed = (btn) => {
     if (!btn) return false;
     if (typeof btn === 'number') return btn > 0.4;
-    return !!(btn.pressed || btn.touched || btn.value > 0.4);
+    return !!(btn.pressed || btn.value > 0.4);
   };
 
   for (let i = 0; i < pads.length; i++) {
@@ -1856,42 +1897,61 @@ function pollHardwareGamepad() {
 
     const axes = gp.axes || [];
     const btns = gp.buttons || [];
+    const isStandard = (gp.mapping === 'standard');
 
-    if (!gamepadAxisBaseline[i] || gamepadAxisBaseline[i].length !== axes.length) {
-      gamepadAxisBaseline[i] = axes.map(v => (Math.abs(v) > 0.8 ? v : 0));
-    }
-    const base = gamepadAxisBaseline[i];
+    // 1. 左搖桿 (axes[0], axes[1])：永遠直接讀取，絕不套用 baseline 鎖定
+    if (axes.length >= 2) {
+      const lx = Number.isFinite(axes[0]) ? axes[0] : 0;
+      const ly = Number.isFinite(axes[1]) ? axes[1] : 0;
+      const mag = Math.hypot(lx, ly);
 
-    const getAxisVal = (idx) => {
-      if (idx >= axes.length) return 0;
-      const raw = axes[idx];
-      if (!Number.isFinite(raw)) return 0;
-      if (Math.abs(base[idx]) > 0.8) return 0;
-      return raw;
-    };
-
-    const axisPairs = [[0, 1], [2, 3], [6, 7], [4, 5]];
-    for (const [axX, axY] of axisPairs) {
-      const vx = getAxisVal(axX);
-      const vy = getAxisVal(axY);
-      if (vx < -deadzone) gLeft = true;
-      if (vx >  deadzone) gRight = true;
-      if (vy < -deadzone) gUp = true;
-      if (vy >  deadzone) gDown = true;
+      if (mag > deadzone) {
+        const absX = Math.abs(lx);
+        const absY = Math.abs(ly);
+        // 加入主軸保護：推「正上/正下」爬梯子時不易因微偏左右而被判成斜向，明顯斜推仍支援八向
+        if (lx < -deadzone && absX >= absY * 0.5) gLeft = true;
+        if (lx >  deadzone && absX >= absY * 0.5) gRight = true;
+        if (ly < -deadzone && absY >= absX * 0.5) gUp = true;
+        if (ly >  deadzone && absY >= absX * 0.5) gDown = true;
+        visualStickX = lx;
+        visualStickY = ly;
+      }
     }
 
-    for (const hatIdx of [9, 8]) {
-      if (axes.length > hatIdx) {
-        const hat = axes[hatIdx];
-        if (Number.isFinite(hat) && hat >= -1.05 && hat <= 1.05 && Math.abs(hat) > 0.01) {
-          if (hat <= -0.65 || hat >= 0.9)  gUp = true;
-          if (hat >= -0.2  && hat <= 0.5)  gDown = true;
-          if (hat >= -0.8  && hat <= -0.05) gRight = true;
-          if (hat >= 0.35  && hat <= 1.05)  gLeft = true;
+    // 2. 非標準模式 (常見於 Android HID) 的十字鍵獨立軸 (axes[6], axes[7]) 與苦力帽 (axes[9])
+    if (!isStandard) {
+      if (axes.length >= 8) {
+        const dx = Number.isFinite(axes[6]) ? axes[6] : 0;
+        const dy = Number.isFinite(axes[7]) ? axes[7] : 0;
+        // 僅在偵測過歸零狀態後才啟用，避免把預設 -1 的板機軸誤當方向
+        if (Math.abs(dx) < 0.2 && Math.abs(dy) < 0.2) {
+          gamepadDpadAxisSafe[i] = true;
+        }
+        if (gamepadDpadAxisSafe[i]) {
+          if (dx < -0.5) gLeft = true;
+          if (dx >  0.5) gRight = true;
+          if (dy < -0.5) gUp = true;
+          if (dy >  0.5) gDown = true;
+        }
+      }
+
+      if (axes.length >= 10) {
+        const hat = axes[9];
+        if (Number.isFinite(hat)) {
+          // 必須曾回報標準 HID 苦力帽中立值 (> 1.1，例如 3.2857) 才視為苦力帽
+          if (hat > 1.1) {
+            gamepadRadialHatReady[i] = true;
+          } else if (gamepadRadialHatReady[i] && hat >= -1.05 && hat <= 1.05) {
+            if (hat <= -0.65 || hat >= 0.9)  gUp = true;
+            if (hat >= -0.2  && hat <= 0.5)  gDown = true;
+            if (hat >= -0.8  && hat <= -0.05) gRight = true;
+            if (hat >= 0.35  && hat <= 1.05)  gLeft = true;
+          }
         }
       }
     }
 
+    // 3. 標準十字鍵與動作鍵 (buttons)
     if (isBtnPressed(btns[14])) gLeft = true;
     if (isBtnPressed(btns[15])) gRight = true;
     if (isBtnPressed(btns[12])) gUp = true;
@@ -1901,9 +1961,42 @@ function pollHardwareGamepad() {
     if (isBtnPressed(btns[1]) || isBtnPressed(btns[5])) gB = true;
     if (isBtnPressed(btns[2]) || isBtnPressed(btns[4])) gX = true;
     if (isBtnPressed(btns[3])) gY = true;
+
+    if (!debugSummary) {
+      const axPreview = Array.from(axes).slice(0, 6).map((v, idx) => `${idx}:${Number(v).toFixed(2)}`).join(' ');
+      debugSummary = `🎮 [${gp.mapping || 'raw'}] ${String(gp.id || '').slice(0, 22)} | ${axPreview}`;
+    }
   }
 
-  if (!hasAnyPad) return;
+  gamepadDebugText = debugSummary;
+
+  if (!hasAnyPad) {
+    releaseGamepadInputs();
+    return;
+  }
+
+  // 有手把輸入時取消 HUD 按鈕焦點，避免按 A 時誤觸「重來 / 選單」等按鈕
+  if ((gLeft || gRight || gUp || gDown || gA || gB || gX || gY) &&
+      document.activeElement && document.activeElement.tagName === 'BUTTON') {
+    document.activeElement.blur();
+  }
+
+  // 同步畫面上的虛擬搖桿頭位置 (僅在未觸控螢幕搖桿時更新)
+  const joyKnob = document.getElementById('joystick-knob');
+  if (joyKnob && !joyKnob.classList.contains('active')) {
+    if (visualStickX !== 0 || visualStickY !== 0) {
+      const maxR = 44;
+      const clampedMag = Math.min(1, Math.hypot(visualStickX, visualStickY));
+      const ang = Math.atan2(visualStickY, visualStickX);
+      const kx = Math.cos(ang) * clampedMag * maxR;
+      const ky = Math.sin(ang) * clampedMag * maxR;
+      joyKnob.style.transform = `translate(${kx.toFixed(1)}px, ${ky.toFixed(1)}px)`;
+      gamepadMovedKnob = true;
+    } else if (gamepadMovedKnob) {
+      joyKnob.style.transform = 'translate(0px, 0px)';
+      gamepadMovedKnob = false;
+    }
+  }
 
   const syncKey = (cur, prev, keyName, btnId) => {
     if (cur !== prev) {
@@ -1924,6 +2017,7 @@ function pollHardwareGamepad() {
 
   prevGamepadState = { left: gLeft, right: gRight, up: gUp, down: gDown, a: gA, b: gB, x: gX, y: gY };
 }
+
 
 function updateMenuLogic(dt) {
   // 👇 新增開始：HELP 視窗的翻頁與關閉邏輯 👇
@@ -4808,6 +4902,17 @@ function loop(now) {
 
   }
   /* 👆 修改結束 👆 */
+  if (showDebugCollision && gamepadDebugText) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+    ctx.fillRect(10, canvas.height - 34, canvas.width - 20, 26);
+    ctx.fillStyle = '#7ef7c8';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(gamepadDebugText, 18, canvas.height - 21);
+    ctx.restore();
+  }
   syncPrevInput(); requestAnimationFrame(loop);
 }
 
