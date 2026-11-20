@@ -77,8 +77,9 @@ window.registerMechanismType("cutscene_trigger", {
     const cleanPath = (mech.videoUrl || "").split(/[?#]/)[0].toLowerCase();
     const isMp4 = cleanPath.endsWith(".mp4");
     const is4pm = cleanPath.endsWith(".4pm");
+    const isLocalFolderMode = (typeof globalFileList !== 'undefined' && Array.isArray(globalFileList) && globalFileList.length > 0);
     
-    if (typeof window.findVirtualFile === 'function') {
+    if (isLocalFolderMode && typeof window.findVirtualFile === 'function') {
       const vFile = window.findVirtualFile(mech.videoUrl);
       if (vFile) {
         if (is4pm) {
