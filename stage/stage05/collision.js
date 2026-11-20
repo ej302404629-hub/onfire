@@ -6,10 +6,7 @@ window.STAGE_COLLISION = {
     "run_and_slide",
     "rope_climb",
     "switch_char",
-    "ignite_item",
-    "z_slope_physics_manager",
-    "wind_tunnel_pose",
-    "ceiling_polyline_guard"
+    "ignite_item"
   ],
   "playerSpawn": {
     "x": 123,
@@ -284,7 +281,7 @@ window.STAGE_COLLISION = {
       "width": 162,
       "height": 49,
       "triggerType": "on_condition",
-      "videoUrl": "test01.4pm",
+      "videoUrl": "test01.mp4",
       "targetObjectId": "checkpoint_4419",
       "targetParam": "activated",
       "targetValue": "true",
@@ -390,6 +387,8 @@ window.STAGE_COLLISION = {
       "y2": 504,
       "midPoints": "",
       "thickness": 36,
+      "showInGame": false,
+      "lineColor": "#95a5a6",
       "type": "ceiling_polyline",
       "id": "ceiling_polyline_8767"
     },
@@ -654,7 +653,8 @@ window.STAGE_COLLISION = {
       "pinEnd": true,
       "ropeLength": 74,
       "texture": "image/rope01.png",
-      "attachStartTo": "rope_551_5"
+      "attachStartTo": "rope_551_5",
+      "attachStartPoint": "end"
     },
     {
       "type": "rope_segment",
@@ -728,7 +728,6 @@ window.STAGE_COLLISION = {
       "worldWidth": 2048,
       "worldHeight": 1004,
       "bgCandidates": [
-        "bg",
         "bg.png"
       ],
       "goalArea": {
@@ -1018,7 +1017,7 @@ window.STAGE_COLLISION = {
           "width": 162,
           "height": 49,
           "triggerType": "on_condition",
-          "videoUrl": "test01.4pm",
+          "videoUrl": "test01.mp4",
           "targetObjectId": "checkpoint_4419",
           "targetParam": "activated",
           "targetValue": "true",
@@ -1124,6 +1123,8 @@ window.STAGE_COLLISION = {
           "y2": 504,
           "midPoints": "",
           "thickness": 36,
+          "showInGame": false,
+          "lineColor": "#95a5a6",
           "type": "ceiling_polyline",
           "id": "ceiling_polyline_8767"
         },
@@ -1388,7 +1389,8 @@ window.STAGE_COLLISION = {
           "pinEnd": true,
           "ropeLength": 74,
           "texture": "image/rope01.png",
-          "attachStartTo": "rope_551_5"
+          "attachStartTo": "rope_551_5",
+          "attachStartPoint": "end"
         },
         {
           "type": "rope_segment",
