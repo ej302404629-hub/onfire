@@ -1345,11 +1345,6 @@ async function loadAndStartStage(stageIdx) {
     await loadSmartImage(rawBgImg, `${st.path}/bg`, () => { isBgReady = true; }, `${st.folder}/bg`);
     
     // 👇 嘗試下載同資料夾下的 depth 圖檔
-    stageLoadStepText = `正在下載關卡背景圖 (${st.path}/bg)...`; 
-    isBgReady = false; rawBgImg = new Image(); 
-    await loadSmartImage(rawBgImg, `${st.path}/bg`, () => { isBgReady = true; }, `${st.folder}/bg`);
-    
-    // 👇 嘗試下載同資料夾下的 depth 圖檔
     stageLoadStepText = `正在偵測關卡景深圖 (${st.path}/depth)...`; 
     isDepthReady = false; rawDepthImg = new Image();
     const depthOk = await loadSmartImage(rawDepthImg, `${st.path}/depth`, () => { isDepthReady = true; }, `${st.folder}/depth`);
@@ -1379,7 +1374,7 @@ async function loadAndStartStage(stageIdx) {
 
     advanceProgress('關卡資源全部載入完成！');
     hasCheckpointSnapshot = false; stageSnapshotStr = null; player.spawnX = null; player.spawnY = null; player.spawnDir = null;
-    instantiateStageEntities(st.path, st.folder, col); stageLoadProgress = 1.0; stageLoadVisualProg = 1.0; await new Promise(r => setTimeout(r, 120)); initPlayerAndEntities(); gameState = STATE.PLAYING; updateHudStatus();
+    instantiateStageEntities(st.path, st.folder, col); stageLoadProgress = 1.0; stageLoadVisualProg = 1.0; await new Promise(r => setTimeout(r, 120)); initPlayerAndEntities(false); gameState = STATE.PLAYING; updateHudStatus();
   } finally { isEnteringStage = false; }
 }
 
@@ -2150,16 +2145,18 @@ function resetStage() {
 
 
 // 負責實體與變數歸零的核心函數
-function initPlayerAndEntities() {
+function initPlayerAndEntities(shouldRestoreSnapshot = true) {
   player.charResistStates = {};
   const c = getActiveCharStats();
-  if (hasCheckpointSnapshot && stageSnapshotStr) {
+  if (shouldRestoreSnapshot && stageSnapshotStr) {
     restoreStageSnapshot();
-  } else {
+  }
+  if (!hasCheckpointSnapshot) {
     player.spawnX = null;
     player.spawnY = null;
     player.spawnDir = null;
   }
+
 
   player.x = (hasCheckpointSnapshot && player.spawnX !== null && player.spawnX !== undefined) ? player.spawnX : (SPAWN_POINT.x ?? 2450);
   player.y = (hasCheckpointSnapshot && player.spawnY !== null && player.spawnY !== undefined) ? player.spawnY : (SPAWN_POINT.y ?? 215);
@@ -3859,13 +3856,31 @@ function drawScene() {
 
     // 把算好 3D 透視的隱藏畫布，貼到遊戲原本的 2D 畫布上
     ctx.drawImage(bgWebGLCanvas, 0, 0, WORLD_W, WORLD_H);
-  } else if (isBgReady) {
+  } else if (isBgReady && rawBgImg && rawBgImg.complete && rawBgImg.naturalWidth > 0) {
     // 如果沒有景深圖，維持原本的一般靜態背景
-    ctx.drawImage(rawBgImg, 0, 0, WORLD_W, WORLD_H); 
-  } else { 
-    ctx.fillStyle = '#181210'; 
-    ctx.fillRect(0, 0, WORLD_W, WORLD_H); 
-  } 
+    ctx.drawImage(rawBgImg, 0, 0, WORLD_W, WORLD_H);
+  } else {
+    // 無背景圖時繪製灰底白線 50x50px 網格
+    const gridSize = 50;
+    ctx.save();
+    ctx.fillStyle = '#666666';
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= WORLD_W; x += gridSize) {
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, WORLD_H);
+    }
+    for (let y = 0; y <= WORLD_H; y += gridSize) {
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(WORLD_W, y + 0.5);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
 }
 
 
