@@ -203,13 +203,12 @@
       }
 
       const phase = t * 1.8;
-      const bounce = Math.abs(Math.cos(phase)) * 5.5;
-      const hipY = -30 - bounce;
-      const bodyTilt = d * 0.36;
+      const bodyTilt = d * 0.42;
+      const shY = -(32 + bh);
+      const hipY = shY + Math.cos(bodyTilt) * bh;
       const shX = Math.sin(bodyTilt) * bh;
-      const shY = hipY - Math.cos(bodyTilt) * bh;
-      const hx = shX + d * 6;
-      const hy = shY - r - 4;
+      const hx = shX + d * 8;
+      const hy = shY - r + 6;
 
       const s1 = Math.sin(phase);
       const s2 = -s1;

@@ -132,7 +132,11 @@
 
             const minSpeed = Math.hypot(minVx, minVyMag);
             const maxSpeed = isLowStance ? 420 : 600;
-            const speed = minSpeed + (maxSpeed - minSpeed) * chargeRatio;
+
+            // 套用角色臂力倍率 (BB 一般 1.3 倍遠，著火 1.7 倍遠)
+            const cStats = (ctxObj && typeof ctxObj.getCharStats === 'function') ? ctxObj.getCharStats() : {};
+            const throwDistMul = player.onFire ? (cStats.fireThrowMul ?? 1.0) : (cStats.throwMul ?? 1.0);
+            const speed = (minSpeed + (maxSpeed - minSpeed) * chargeRatio) * Math.sqrt(throwDistMul);
 
             const minAngle = Math.atan2(minVyMag, minVx); // 原本的起始仰角
             const maxAngle = Math.PI / 4;                 // 按滿時為斜上方 45 度
@@ -477,8 +481,11 @@
         const maxAngle = Math.PI / 4; // 45度
         const curAngle = minAngle + (maxAngle - minAngle) * p;
 
-        // 繪製動態投擲角度與力道瞄準線
-        const arrowLen = 26 + p * 38;
+        const cStats = (typeof getActiveCharStats === 'function') ? getActiveCharStats() : {};
+        const throwDistMul = player.onFire ? (cStats.fireThrowMul ?? 1.0) : (cStats.throwMul ?? 1.0);
+
+        // 繪製動態投擲角度與力道瞄準線 (依臂力倍率延伸)
+        const arrowLen = (26 + p * 38) * Math.sqrt(throwDistMul);
         const ax = handX + player.dir * Math.cos(curAngle) * arrowLen;
         const ay = handY - Math.sin(curAngle) * arrowLen;
         ctx.strokeStyle = 'rgba(255, 180, 70, 0.9)';

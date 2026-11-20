@@ -53,45 +53,46 @@
   .gb-hud {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
     background: #171314;
     padding: 5px 8px;
     border-radius: 8px;
     border: 1px solid #332926;
   }
 
-  .hud-top-row {
+  .bars-col {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    font-weight: 900;
-    color: #f5b041;
-  }
-
-  .bars-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+    flex-direction: column;
+    gap: 3px;
   }
   .bar-wrap {
-    flex: 1;
     display: flex;
     align-items: center;
-    gap: 5px;
-    font-size: 11px;
+    gap: 6px;
+    font-size: 10px;
     font-weight: 900;
+    line-height: 1;
+  }
+  .bar-label {
+    width: 36px;
+    text-align: left;
+    color: #e6dfd5;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
   .bar-bg {
     flex: 1;
-    height: 10px;
+    height: 8px;
     background: #090707;
-    border: 1.5px solid #4d3d36;
-    border-radius: 5px;
+    border: 1px solid #4d3d36;
+    border-radius: 4px;
     overflow: hidden;
   }
-  #hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #27ae60, #2ecc71); transition: width 0.08s; }
-  #heat-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #f39c12, #ff2a1a); transition: width 0.08s; }
+  #hp-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #27ae60, #2ecc71); transition: width 0.08s; }
+  #heat-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #f9e104, #ff7b00, #ff1e1e); transition: width 0.08s; }
+  #speed-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #2980b9, #3498db); transition: width 0.12s; }
+  #ignition-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #d4ac0d, #f1c40f); transition: width 0.12s; }
+  #resist-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #d35400, #f39c12); transition: width 0.08s; }
 
   .debug-row { display: flex; gap: 4px; justify-content: space-between; }
   .mini-btn, .android-folder-btn {
@@ -151,7 +152,7 @@
     border: 3px solid #3c364a;
     box-shadow: inset 0 6px 16px rgba(0,0,0,0.85), 0 4px 10px rgba(0,0,0,0.6);
     touch-action: none;
-    display: flex;
+    display: none;
     justify-content: center;
     align-items: center;
   }
@@ -212,7 +213,7 @@
 
   /* 九宮格八向實體方向鍵容器 (預設隱藏) */
   .dpad-8way-grid {
-    display: none;
+    display: grid;
     width: 146px;
     height: 146px;
     grid-template-columns: repeat(3, 1fr);
@@ -403,6 +404,20 @@
     .dpad-container, .xbox-pad-container {
       transform: scale(0.88);
     }
+    .gb-hud {
+      padding: 3px 6px;
+      gap: 3px;
+    }
+    .bars-col {
+      gap: 2px;
+    }
+    .bar-wrap {
+      font-size: 9px;
+    }
+    .bar-bg {
+      height: 6px;
+    }
+    
   }
 </style>
 </head>
@@ -411,14 +426,6 @@
 <div class="gb-console">
   <div class="gb-screen-bezel">
     <div class="gb-hud">
-      <div class="hud-top-row">
-        <span id="hud-status-text">正在自動偵測遊戲資源...</span>
-        <span id="hud-char-badge">讀取中</span>
-      </div>
-      <div class="bars-row">
-        <div class="bar-wrap"><span>HP</span><div class="bar-bg"><div id="hp-bar"></div></div><span id="hp-val">100%</span></div>
-        <div class="bar-wrap"><span id="heat-lbl">熱量</span><div class="bar-bg"><div id="heat-bar"></div></div><span id="heat-val">0%</span></div>
-      </div>
       <div class="debug-row">
         <label class="android-folder-btn">📂 選資料夾<input type="file" id="android-dir-input" webkitdirectory directory multiple hidden></label>
         <button class="mini-btn" onclick="returnToMenu()">🏠 選單</button>
@@ -427,7 +434,15 @@
         <button class="mini-btn" onclick="resetStage()">🔄 重來</button>
         <button class="mini-btn" id="btn-fullscreen" onclick="toggleFullScreen()">⛶ 全螢幕</button>
       </div>
+      <div class="bars-col">
+        <div class="bar-wrap"><span class="bar-label">HP</span><div class="bar-bg"><div id="hp-bar"></div></div></div>
+        <div class="bar-wrap"><span class="bar-label">溫度</span><div class="bar-bg"><div id="heat-bar"></div></div></div>
+        <div class="bar-wrap"><span class="bar-label">速度</span><div class="bar-bg"><div id="speed-bar"></div></div></div>
+        <div class="bar-wrap"><span class="bar-label">燃點</span><div class="bar-bg"><div id="ignition-bar"></div></div></div>
+        <div class="bar-wrap"><span class="bar-label">耐熱度</span><div class="bar-bg"><div id="resist-bar"></div></div></div>
+      </div>
     </div>
+
 
     <div class="canvas-viewport">
       <div id="android-loader-modal">
@@ -439,6 +454,9 @@
         <label class="modal-big-btn">📂 點此選擇遊戲總資料夾<input type="file" id="android-modal-input" webkitdirectory directory multiple hidden></label>
       </div>
       <canvas id="gameCanvas" width="1024" height="720"></canvas>
+      <video id="cutscene-player" width="1024" height="720" style="display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; z-index:40; pointer-events:auto;"></video>
+      <canvas id="cutscene-ui" width="1024" height="720" style="display:none; position:absolute; inset:0; width:100%; height:100%; z-index:50; pointer-events:none;"></canvas>
+
     </div>
 
     <div class="gb-brand">
@@ -449,7 +467,7 @@
 
   <div class="gb-controls">
     <div class="dpad-container">
-      <button type="button" class="dpad-toggle-btn" id="btn-toggle-dpad">➕ 八向鍵</button>
+      <button type="button" class="dpad-toggle-btn" id="btn-toggle-dpad">🕹️ 搖桿</button>
       <div class="joystick-base" id="joystick-base">
         <div class="joystick-knob" id="joystick-knob"></div>
       </div>
@@ -465,7 +483,7 @@
         <button type="button" class="dpad-btn diag rot-dr" id="pad-down-right" data-dirs="down,right">▲</button>
       </div>
 
-      <div class="dpad-hint">🕹️ 搖桿移動/爬梯/進門 ｜ B 爬行 ｜ A 跳躍/站立</div>
+      <div class="dpad-hint">➕ 八向鍵移動/爬梯/進門 ｜ B 爬行 ｜ A 跳躍/站立</div>
     </div>
 
 
@@ -486,6 +504,37 @@
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+// 👇 新增：全域過場動畫控制函式與跳過變數 👇
+let skipProgress = 0;
+
+window.playStageCutscene = function(videoUrl, onComplete) {
+  const videoEl = document.getElementById('cutscene-player');
+  const uiCanvas = document.getElementById('cutscene-ui');
+  
+  videoEl.src = videoUrl;
+  videoEl.style.display = 'block';
+  if (uiCanvas) uiCanvas.style.display = 'block';
+  
+  gameState = STATE.CUTSCENE;
+  skipProgress = 0; // 確保每次播放前進度歸零
+
+  const finishCutscene = () => {
+    videoEl.style.display = 'none';
+    if (uiCanvas) uiCanvas.style.display = 'none';
+    videoEl.src = '';
+    gameState = STATE.PLAYING;
+    if (onComplete) onComplete();
+  };
+
+  videoEl.onended = finishCutscene;
+  
+  videoEl.play().catch(e => {
+    console.warn("自動播放失敗，可能是瀏覽器限制：", e);
+    finishCutscene();
+  });
+};
+// 👆 新增結束 👆
+
 
 window.GAME_MECHANISMS_REGISTRY = {};
 window.registerMechanismType = function(typeName, definition) { window.GAME_MECHANISMS_REGISTRY[typeName] = definition; };
@@ -537,28 +586,69 @@ let stageSnapshotStr = null;
 let stageSnapshotEnv = null; // 👈 新增：用於儲存背景圖、環境尺寸與碰撞資料
 let hasCheckpointSnapshot = false;
 
-// 將當前機關與道具狀態寫入暫存區 (不再記錄殘血與熱量)
+// 僅過濾真正的循環參照與 DOM/貼圖物件，保留共用的資料結構
+function cloneForSnapshot(value, ancestors = []) {
+  if (value === null || typeof value !== 'object') return value;
+  if (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) return undefined;
+  if (ancestors.includes(value)) return undefined;
+
+  const nextAncestors = ancestors.concat([value]);
+  if (Array.isArray(value)) {
+    return value.map(item => {
+      const cloned = cloneForSnapshot(item, nextAncestors);
+      return cloned === undefined ? null : cloned;
+    });
+  }
+
+  const out = {};
+  for (const key of Object.keys(value)) {
+    if (key === '_img' || key === '_prevSeg' || key === '_nextSeg' || key === '_linkedDoor') continue;
+    const clonedVal = cloneForSnapshot(value[key], nextAncestors);
+    if (clonedVal !== undefined) {
+      out[key] = clonedVal;
+    }
+  }
+  return out;
+}
+
+// 將當前機關與道具狀態寫入暫存區
 function saveStageSnapshot() {
-  stageSnapshotStr = JSON.stringify({
-    mechanisms: activeMechanisms,
-    items: activeItems
-  });
-  
-  // 👇 新增：備份當下房間的全域環境變數與背景圖
-  stageSnapshotEnv = {
-    worldW: WORLD_W,
-    worldH: WORLD_H,
-    groundPolylines: JSON.parse(JSON.stringify(GROUND_POLYLINES)),
-    ladders: JSON.parse(JSON.stringify(LADDERS)),
-    solidWalls: JSON.parse(JSON.stringify(SOLID_WALLS)),
-    frictionZones: JSON.parse(JSON.stringify(FRICTION_ZONES)),
-    spawnPoint: JSON.parse(JSON.stringify(SPAWN_POINT)),
-    goalCondition: JSON.parse(JSON.stringify(GOAL_CONDITION)),
-    bgImg: rawBgImg,
-    depthImg: rawDepthImg,
-    isBgReady: isBgReady,
-    isDepthReady: isDepthReady
-  };
+  try {
+    // 同步讀取 checkpoint.js 更新的 player.spawnX / spawnY / spawnDir
+    const activeSpawnX = (player.spawnX !== undefined && player.spawnX !== null)
+      ? player.spawnX
+      : (window.STAGE_COLLISION?.playerSpawn?.x ?? SPAWN_POINT.x);
+    const activeSpawnY = (player.spawnY !== undefined && player.spawnY !== null)
+      ? player.spawnY
+      : (window.STAGE_COLLISION?.playerSpawn?.y ?? SPAWN_POINT.y);
+    const activeSpawnDir = (player.spawnDir !== undefined && player.spawnDir !== null)
+      ? player.spawnDir
+      : (window.STAGE_COLLISION?.playerSpawn?.dir ?? SPAWN_POINT.dir);
+
+    SPAWN_POINT = { x: activeSpawnX, y: activeSpawnY, dir: activeSpawnDir };
+
+    stageSnapshotStr = JSON.stringify({
+      mechanisms: cloneForSnapshot(activeMechanisms),
+      items: cloneForSnapshot(activeItems)
+    });
+
+    stageSnapshotEnv = {
+      worldW: WORLD_W,
+      worldH: WORLD_H,
+      groundPolylines: JSON.parse(JSON.stringify(GROUND_POLYLINES)),
+      ladders: JSON.parse(JSON.stringify(LADDERS)),
+      solidWalls: JSON.parse(JSON.stringify(SOLID_WALLS)),
+      frictionZones: JSON.parse(JSON.stringify(FRICTION_ZONES)),
+      spawnPoint: { x: activeSpawnX, y: activeSpawnY, dir: activeSpawnDir },
+      goalCondition: JSON.parse(JSON.stringify(GOAL_CONDITION)),
+      bgImg: rawBgImg,
+      depthImg: rawDepthImg,
+      isBgReady: isBgReady,
+      isDepthReady: isDepthReady
+    };
+  } catch (e) {
+    console.warn("儲存快照失敗:", e);
+  }
 }
 
 // 從暫存區讀取狀態並覆蓋當前實體
@@ -566,8 +656,7 @@ function restoreStageSnapshot() {
   if (!stageSnapshotStr) return false;
   try {
     const snap = JSON.parse(stageSnapshotStr);
-    
-    // 👇 新增：還原房間的全域環境與背景圖 (解決死在子房間，背景與地形卻沒切換回來的 Bug)
+
     if (stageSnapshotEnv) {
       WORLD_W = stageSnapshotEnv.worldW;
       WORLD_H = stageSnapshotEnv.worldH;
@@ -577,44 +666,68 @@ function restoreStageSnapshot() {
       FRICTION_ZONES = JSON.parse(JSON.stringify(stageSnapshotEnv.frictionZones));
       SPAWN_POINT = JSON.parse(JSON.stringify(stageSnapshotEnv.spawnPoint));
       GOAL_CONDITION = JSON.parse(JSON.stringify(stageSnapshotEnv.goalCondition));
-      
-      // 還原背景圖片與 WebGL 狀態
+
+      // 同步回寫至 player 與 STAGE_COLLISION，確保重生點完全一致
+      player.spawnX = SPAWN_POINT.x;
+      player.spawnY = SPAWN_POINT.y;
+      player.spawnDir = SPAWN_POINT.dir;
+      if (window.STAGE_COLLISION && window.STAGE_COLLISION.playerSpawn) {
+        window.STAGE_COLLISION.playerSpawn.x = SPAWN_POINT.x;
+        window.STAGE_COLLISION.playerSpawn.y = SPAWN_POINT.y;
+        window.STAGE_COLLISION.playerSpawn.dir = SPAWN_POINT.dir;
+      }
+
       rawBgImg = stageSnapshotEnv.bgImg;
       rawDepthImg = stageSnapshotEnv.depthImg;
       isBgReady = stageSnapshotEnv.isBgReady;
       isDepthReady = stageSnapshotEnv.isDepthReady;
-      
-      // 如果有開啟 3D 景深，同步更新 WebGL 材質
+
       if (isBgReady && isDepthReady && typeof updateWebGLTextures === 'function') {
         updateWebGLTextures(rawBgImg, rawDepthImg);
       }
     }
 
-    // 重新建立機關實體 (保留原型鏈上的函式)
+    // 先將所有機關與道具完整放入全域陣列，避免跨物件搜尋時找不到目標
     activeMechanisms = []; window.activeMechanisms = activeMechanisms;
     snap.mechanisms.forEach(rawMech => {
-      const def = window.GAME_MECHANISMS_REGISTRY[rawMech.type];
-      if (def && typeof def.init === 'function') {
-         // 注意：如果是已經啟動過的，就不呼叫 init，避免覆蓋掉快照的參數
-         if (rawMech.activated === undefined && rawMech.isBurning === undefined) def.init(rawMech);
-      }
       if (rawMech.texture && cachedEntityImages[rawMech.texture]) {
-         rawMech._img = cachedEntityImages[rawMech.texture];
+        rawMech._img = cachedEntityImages[rawMech.texture];
       }
       activeMechanisms.push(rawMech);
     });
 
-    // 重新建立道具實體
     activeItems = []; window.activeItems = activeItems;
     snap.items.forEach(rawItem => {
-      const def = window.GAME_ITEMS_REGISTRY[rawItem.type];
-      if (def && typeof def.init === 'function') {
-         if (rawItem.collected === undefined) def.init(rawItem);
-      }
       if (rawItem.texture && cachedEntityImages[rawItem.texture]) {
-         rawItem._img = cachedEntityImages[rawItem.texture];
+        rawItem._img = cachedEntityImages[rawItem.texture];
       }
       activeItems.push(rawItem);
+    });
+
+    // 陣列建置完成後，僅針對需要重建內部連結的類型重新銜接（不覆蓋 auto_gate 等已保存的座標進度）
+    const pluginCtx = createPluginContext();
+    activeMechanisms.forEach(rawMech => {
+      const def = window.GAME_MECHANISMS_REGISTRY[rawMech.type];
+      if (!def) return;
+      if (typeof def.onRestore === 'function') {
+        def.onRestore(rawMech, pluginCtx);
+      } else if (rawMech.type === 'room_door' && typeof def.init === 'function') {
+        delete rawMech._inited;
+        delete rawMech._initialized;
+        def.init(rawMech);
+      }
+    });
+
+    activeItems.forEach(rawItem => {
+      const def = window.GAME_ITEMS_REGISTRY[rawItem.type];
+      if (!def) return;
+      if (typeof def.onRestore === 'function') {
+        def.onRestore(rawItem, pluginCtx);
+      } else if (rawItem.type === 'rope_segment' && typeof def.init === 'function') {
+        delete rawItem._inited;
+        delete rawItem._initialized;
+        def.init(rawItem);
+      }
     });
 
     return true;
@@ -626,8 +739,9 @@ function restoreStageSnapshot() {
 
 
 
+
 // 👇 修改開始：加入 STAGE_HELP 狀態與頁碼變數 👇
-const STATE = { TITLE_LOADING: 'TITLE_LOADING', CONTROLS_GUIDE: 'CONTROLS_GUIDE', CHAR_SELECT: 'CHAR_SELECT', STAGE_SELECT: 'STAGE_SELECT', STAGE_LOADING: 'STAGE_LOADING', PLAYING: 'PLAYING', STAGE_HELP: 'STAGE_HELP', RESTART_CONFIRM: 'RESTART_CONFIRM' };
+const STATE = { TITLE_LOADING: 'TITLE_LOADING', CONTROLS_GUIDE: 'CONTROLS_GUIDE', CHAR_SELECT: 'CHAR_SELECT', STAGE_SELECT: 'STAGE_SELECT', STAGE_LOADING: 'STAGE_LOADING', PLAYING: 'PLAYING', STAGE_HELP: 'STAGE_HELP', RESTART_CONFIRM: 'RESTART_CONFIRM', CUTSCENE: 'CUTSCENE' };
 let gameState = STATE.TITLE_LOADING;
 let helpCurrentPage = 1;
 // 👆 修改結束 👆
@@ -716,7 +830,11 @@ function updateWebGLTextures(bgImg, depthImg) {
 
 
 const PHYS_STAND_H = 132, PHYS_CRAWL_H = 64, PHYS_HALF_W = 16;
-function getStanceHeight(isCrawl) { return isCrawl ? PHYS_CRAWL_H : PHYS_STAND_H; }
+function getStandHeight() {
+  const c = getActiveCharStats();
+  return c.standHeight || PHYS_STAND_H;
+}
+function getStanceHeight(isCrawl) { return isCrawl ? PHYS_CRAWL_H : getStandHeight(); }
 
 const player = {
   x: 1930, y: 792, vx: 0, vy: 0, dir: -1,
@@ -727,6 +845,12 @@ const player = {
   deathCause: 'fire',
   stanceT: 0, 
   landSquatTimer: 0,
+  rubbingHead: false,
+  selfIgniteLock: false,
+  rolling: false,
+  rollTimer: 0,
+  rollDuration: 0.42,
+  
   turning: false,
   turnTimer: 0,
   turnDuration: 0.4,
@@ -744,6 +868,8 @@ const player = {
   lockDefaultMove: false,
   customHitbox: null,
   onFire: false, slapping: false, hp: 100, heat: 0, maxHeat: 100,
+  charResistStates: {},
+  weight: 3,
   slapProgress: 0, animT: 0, won: false, dying: false, deathTimer: 0, dead: false, scraping: false
 };
 
@@ -1252,6 +1378,7 @@ async function loadAndStartStage(stageIdx) {
     }
 
     advanceProgress('關卡資源全部載入完成！');
+    hasCheckpointSnapshot = false; stageSnapshotStr = null; player.spawnX = null; player.spawnY = null; player.spawnDir = null;
     instantiateStageEntities(st.path, st.folder, col); stageLoadProgress = 1.0; stageLoadVisualProg = 1.0; await new Promise(r => setTimeout(r, 120)); initPlayerAndEntities(); gameState = STATE.PLAYING; updateHudStatus();
   } finally { isEnteringStage = false; }
 }
@@ -1266,23 +1393,53 @@ function returnToMenu() {
   if (gameState === STATE.PLAYING) gameState = STATE.STAGE_SELECT; else gameState = STATE.CHAR_SELECT;
   particles.length = 0; updateHudStatus();
 }
-function updateHudStatus() {
-  const statusEl = document.getElementById('hud-status-text'), badgeEl = document.getElementById('hud-char-badge'), ch = loadedCharacters[selectedCharIdx], actCount = Object.keys(window.GAME_ACTIONS_REGISTRY).length;
-  if (gameState === STATE.TITLE_LOADING) {
-    statusEl.textContent = isGameBootComplete ? '✅ 載入完畢！按「A」進入遊戲 ｜ 按「X」操作說明' : `⏳ ${gameBootStepText}`;
-    badgeEl.textContent = `${Math.round(gameBootProgress * 100)}%`;
+function updateStatBarsUI(activeStats) {
+  const hpBar = document.getElementById('hp-bar');
+  const heatBar = document.getElementById('heat-bar');
+  const speedBar = document.getElementById('speed-bar');
+  const ignitionBar = document.getElementById('ignition-bar');
+  const resistBar = document.getElementById('resist-bar');
+
+  // 遊戲讀取階段、封面與操作說明畫面：全部能力條維持 0
+  if (
+    gameState === STATE.TITLE_LOADING ||
+    gameState === STATE.CONTROLS_GUIDE ||
+    !loadedCharacters ||
+    loadedCharacters.length === 0
+  ) {
+    if (hpBar) hpBar.style.width = '0%';
+    if (heatBar) heatBar.style.width = '0%';
+    if (speedBar) speedBar.style.width = '0%';
+    if (ignitionBar) ignitionBar.style.width = '0%';
+    if (resistBar) resistBar.style.width = '0%';
     return;
   }
-  if (gameState === STATE.CONTROLS_GUIDE) {
-    statusEl.textContent = '📖 操作功能鍵說明 ｜ 按「B」返回主畫面';
-    badgeEl.textContent = '操作說明';
-    return;
-  }
-  if (gameState === STATE.CHAR_SELECT) { statusEl.textContent = `1. 請選擇角色 (${selectedCharIdx + 1}/${loadedCharacters.length || 0})` + (actCount > 0 ? ` [動作外掛:${actCount}]` : ''); badgeEl.textContent = ch ? ch.name : '讀取中'; }
-  else if (gameState === STATE.STAGE_SELECT) { const st = loadedStages[selectedStageIdx], lockTag = st && st.locked ? ' (🔒未開放)' : ''; statusEl.textContent = `2. 請選擇關卡 (${selectedStageIdx + 1}/${loadedStages.length || 0})${lockTag}`; badgeEl.textContent = `${ch ? ch.name : ''} ｜ 제 ${st ? st.stageNumStr : '--'} 關`; }
-  else if (gameState === STATE.STAGE_LOADING) { statusEl.textContent = `⏳ 正在載入 ${stageLoadTitleText}...`; badgeEl.textContent = `${Math.round(stageLoadProgress * 100)}%`; }
-  else { const st = loadedStages[selectedStageIdx]; statusEl.textContent = stageLoadWarning || `STAGE ${st ? st.stageNumStr : '01'} (⚙️:${activeMechanisms.length} 🎁:${activeItems.length} ⚡:${actCount})`; badgeEl.textContent = ch ? `${ch.name} (速${ch.stats.speed}/燃${ch.stats.ignition}/耐${ch.stats.resist})` : ''; }
+
+  const c = activeStats || getActiveCharStats();
+  const isMenuPreview =
+    gameState === STATE.CHAR_SELECT ||
+    gameState === STATE.STAGE_SELECT ||
+    gameState === STATE.STAGE_LOADING;
+
+  const hpPct = isMenuPreview ? 100 : Math.max(0, Math.min(100, player.hp));
+  const heatPct = isMenuPreview ? 0 : Math.max(0, Math.min(100, player.maxHeat > 0 ? (player.heat / player.maxHeat) * 100 : 0));
+  const speedPct = Math.max(0, Math.min(100, (c.speed / 10) * 100));
+  const ignitionPct = Math.max(0, Math.min(100, (c.ignition / 10) * 100));
+  const displayResist = (isMenuPreview && c.dynamicResist) ? c.dynamicResist.max : c.resist;
+  const resistPct = Math.max(0, Math.min(100, (displayResist / 50) * 100));
+
+  if (hpBar) hpBar.style.width = `${hpPct}%`;
+  if (heatBar) heatBar.style.width = `${heatPct}%`;
+  if (speedBar) speedBar.style.width = `${speedPct}%`;
+  if (ignitionBar) ignitionBar.style.width = `${ignitionPct}%`;
+  if (resistBar) resistBar.style.width = `${resistPct}%`;
 }
+
+function updateHudStatus() {
+  updateStatBarsUI();
+}
+
+
 
 const input = { left: false, right: false, up: false, down: false, jump: false, crawl: false, climb: false, slap: false }, prevInput = { left: false, right: false, up: false, down: false, jump: false, crawl: false, climb: false, slap: false };
 function wasJustPressed(key) { return input[key] && !prevInput[key]; }
@@ -1417,7 +1574,7 @@ if (btnHelp) {
   const hintEl = document.querySelector('.dpad-hint');
   if (!toggleBtn || !joyBase || !dpadGrid) return;
 
-  let isDpadMode = false;
+  let isDpadMode = true;
   const dpadBtns = Array.from(dpadGrid.querySelectorAll('.dpad-btn'));
   const activeTouches = new Map(); // touchId -> btnElement
   let mouseDownOnGrid = false;
@@ -1788,6 +1945,9 @@ function updateMenuLogic(dt) {
     if (wasJustPressed('jump')) { 
       hasCheckpointSnapshot = false;
       stageSnapshotStr = null;
+      player.spawnX = null;
+      player.spawnY = null;
+      player.spawnDir = null;
       loadAndStartStage(selectedStageIdx);
     }
     if (wasJustPressed('crawl') || wasJustPressed('slap')) { 
@@ -1876,11 +2036,77 @@ function sampleGroundY(x, refY = 0) {
 }
 function getActiveCharStats() { 
   const ch = loadedCharacters[selectedCharIdx]; 
-  const stats = ch ? { speed: ch.stats.speed, ignition: ch.stats.ignition, resist: ch.stats.resist, extinguish: ch.stats.extinguish, headR: ch.appearance.headRadius, bodyW: ch.appearance.bodyWidth, bodyH: ch.appearance.bodyHeight, limbW: ch.appearance.limbWidth, ponytail: !!ch.appearance.hasPonytail, headColor: ch.appearance.headColor || '#e03131', bodyColor: ch.appearance.bodyColor || '#d99b38' } : { speed: 5, ignition: 4, resist: 5, extinguish: 1.5, headR: 25, bodyW: 18, bodyH: 44, limbW: 6.5, ponytail: false, headColor: '#e03131', bodyColor: '#d99b38' }; 
+  const ab = (ch && ch.abilities) ? ch.abilities : {};
+  const charIdKey = String(ch?.id || ch?.folder || ch?.name || (ch ? '' : 'peter')).toLowerCase();
+  const isPeter = charIdKey === 'peter';
+  const isRose = charIdKey === 'rose';
+  const isBB = charIdKey === 'bb';
+
+  const GLOBAL_THROW_DIST_SCALE = 0.8; // 👈 全域丟擲距離倍率 (1.0=原距離，0.8=縮短為80%，0.6=縮短為60%)
+
+  let dynamicResist = null;
+  let effectiveResist = ch ? ch.stats.resist : 5;
+  if (ch && ch.dynamicResist) {
+    const rawDr = ch.dynamicResist;
+    const maxVal = rawDr.max ?? ch.stats.resist;
+    const minVal = rawDr.min ?? ch.stats.resist;
+    dynamicResist = {
+      max: maxVal,
+      min: minVal,
+      delay: rawDr.delay ?? 0,
+      decayTime: rawDr.decayTime ?? 1,
+      recoverTime: rawDr.recoverTime ?? 1
+    };
+    const charKey = String(ch.id || ch.folder || ch.name || 'default').toLowerCase();
+    if (!player.charResistStates) player.charResistStates = {};
+    if (!player.charResistStates[charKey]) {
+      player.charResistStates[charKey] = { val: maxVal, burnTimer: 0 };
+    }
+    effectiveResist = player.charResistStates[charKey].val;
+  }
+
+  const defaultJumpMul = isPeter ? 1.3 : (isBB ? 0.8 : 1.0);
+  const baseJumpMul = ab.jumpHeightMul ?? defaultJumpMul;
+  const fireJumpMul = ab.fireJumpHeightMul ?? (isPeter ? 1.9 : baseJumpMul);
+  const defaultWeight = isPeter ? 3 : (isRose ? 2 : (isBB ? 6 : 3));
+
+  const stats = ch ? {
+    id: ch.id || ch.folder || '',
+    speed: ch.stats.speed,
+    ignition: ch.stats.ignition,
+    resist: effectiveResist,
+    dynamicResist: dynamicResist,
+    extinguish: ch.stats.extinguish,
+    weight: ch.stats?.weight ?? ab.weight ?? defaultWeight,
+    headR: ch.appearance.headRadius,
+    bodyW: ch.appearance.bodyWidth,
+    bodyH: ch.appearance.bodyHeight,
+    limbW: ch.appearance.limbWidth,
+    ponytail: !!ch.appearance.hasPonytail,
+    headColor: ch.appearance.headColor || '#e03131',
+    bodyColor: ch.appearance.bodyColor || '#d99b38',
+    canSelfIgnite: ab.canSelfIgnite ?? isPeter,
+    fallDamageMul: ab.fallDamageMul ?? (isPeter ? 0.4 : 1.0),
+    rollOnHardLanding: ab.rollOnHardLanding ?? isPeter,
+    jumpHeightMul: baseJumpMul,
+    fireJumpHeightMul: fireJumpMul,
+    throwMul: (ab.throwMul ?? (isBB ? 1.3 : 1.0)) * GLOBAL_THROW_DIST_SCALE,
+    fireThrowMul: (ab.fireThrowMul ?? (isBB ? 1.7 : 1.0)) * GLOBAL_THROW_DIST_SCALE
+  } : {
+    id: 'peter', speed: 5, ignition: 4, resist: 5, dynamicResist: null, extinguish: 1.5,
+    weight: 3,
+    headR: 25, bodyW: 18, bodyH: 44, limbW: 6.5, ponytail: false,
+    headColor: '#e03131', bodyColor: '#d99b38',
+    canSelfIgnite: true, fallDamageMul: 0.4, rollOnHardLanding: true,
+    jumpHeightMul: 1.3, fireJumpHeightMul: 1.9, throwMul: 1.0, fireThrowMul: 1.0
+  }; 
   stats.bodyH = stats.bodyH * 0.75; // 身體縮短四分之一
   stats.limbW = stats.limbW * 0.6;  // 手腳改細
+  const visualStandH = Math.round(28 + stats.bodyH + stats.headR * 2);
+  stats.standHeight = ab.standHeight ?? ((isPeter || isRose) ? visualStandH : PHYS_STAND_H);
   return stats; 
 }
+
 
 function createPluginContext() {
   return {
@@ -1897,8 +2123,14 @@ function createPluginContext() {
   };
 }
 function toggleCameraView() { followCameraMode = !followCameraMode; document.getElementById('btn-cam').textContent = `🎥 ${followCameraMode ? '跟隨' : '全景'}`; }
-function toggleCollisionDebug() { showDebugCollision = !showDebugCollision; const btn = document.getElementById('btn-debug-col'); btn.textContent = `📐 碰撞:${showDebugCollision ? '開' : '關'}`; btn.style.background = showDebugCollision ? '#8f2447' : '#2b2320'; btn.style.color = showDebugCollision ? '#ffffff' : '#f5b041'; }
-
+function toggleCollisionDebug() {
+  showDebugCollision = !showDebugCollision;
+  window.showDebugCollision = showDebugCollision;
+  const btn = document.getElementById('btn-debug-col');
+  btn.textContent = `📐 碰撞:${showDebugCollision ? '開' : '關'}`;
+  btn.style.background = showDebugCollision ? '#8f2447' : '#2b2320';
+  btn.style.color = showDebugCollision ? '#ffffff' : '#f5b041';
+}
 function resetStage() {
   if (player.dead) {
       initPlayerAndEntities();
@@ -1919,14 +2151,31 @@ function resetStage() {
 
 // 負責實體與變數歸零的核心函數
 function initPlayerAndEntities() {
+  player.charResistStates = {};
   const c = getActiveCharStats();
-  player.x = SPAWN_POINT.x ?? 2450; player.y = SPAWN_POINT.y ?? 215; player.vx = player.vy = 0; player.dir = SPAWN_POINT.dir ?? -1;
+  if (hasCheckpointSnapshot && stageSnapshotStr) {
+    restoreStageSnapshot();
+  } else {
+    player.spawnX = null;
+    player.spawnY = null;
+    player.spawnDir = null;
+  }
+
+  player.x = (hasCheckpointSnapshot && player.spawnX !== null && player.spawnX !== undefined) ? player.spawnX : (SPAWN_POINT.x ?? 2450);
+  player.y = (hasCheckpointSnapshot && player.spawnY !== null && player.spawnY !== undefined) ? player.spawnY : (SPAWN_POINT.y ?? 215);
+  player.vx = player.vy = 0;
+  player.dir = (hasCheckpointSnapshot && player.spawnDir !== null && player.spawnDir !== undefined) ? player.spawnDir : (SPAWN_POINT.dir ?? -1);
   player.grounded = true; player.crawling = player.climbing = player.raisingHands = player.ledgeClimbing = player.ledgeForceCrawl = false;
   player.ledgeClimbingDown = false;
   player.fallStartY = player.y;
   player.deathCause = 'fire';
   player.stanceT = 0; 
   player.landSquatTimer = 0;
+  player.rubbingHead = false;
+  player.selfIgniteLock = false;
+  player.rolling = false;
+  player.rollTimer = 0;
+  
   player.turning = false;
   player.turnTimer = 0;
   player.turnFromDir = player.dir;
@@ -1943,12 +2192,10 @@ function initPlayerAndEntities() {
   }
   player.onFire = player.slapping = player.won = player.dying = false; player.deathTimer = 0; player.dead = false;
   player.hp = 100; player.heat = player.slapProgress = 0; player.maxHeat = c.ignition * 25; particles.length = 0; nearestInteractableItem = null;
-  // const st = loadedStages[selectedStageIdx]; if (st && rawCollisionData) instantiateStageEntities(st.path, st.folder, rawCollisionData);
-  
-  if (stageSnapshotStr) {
-      restoreStageSnapshot();
-  }
+  player.weight = c.weight;
+  updateStatBarsUI(c);
 }
+
 
 function shouldWallBlockPlayer(w, pTop, pBot) {
   if (pBot <= w.yTop || pTop >= w.yBottom) return false;
@@ -1994,9 +2241,10 @@ function findClimbableLedgePlatform() {
   };
 
   const shouldCrawlAfterClimb = (checkX, gY) => {
+    const standH = getStandHeight();
     for (const z of FRICTION_ZONES) {
       if (z.requireCrawl && z.blockBot !== undefined && checkX >= z.x1 && checkX <= z.x2 && gY >= z.yMin && gY <= z.yMax) {
-        if (gY - PHYS_STAND_H < z.blockBot) return true;
+        if (gY - standH < z.blockBot) return true;
       }
     }
     return false;
@@ -2181,13 +2429,15 @@ function findClimbDownLedgePlatform() {
 
 function isHeadBlockedToStand(px, py) {
   // 1. 舊版陣列相容
+  const standH = getStandHeight();
   for (const z of FRICTION_ZONES) {
     if (z.requireCrawl && px + PHYS_HALF_W - 4 > z.x1 && px - PHYS_HALF_W + 4 < z.x2 && py >= z.yMin && py <= z.yMax) {
-      if (z.blockBot === undefined || (py - PHYS_STAND_H < z.blockBot)) {
+      if (z.blockBot === undefined || (py - standH < z.blockBot)) {
         return true;
       }
     }
   }
+
 
   // 2. 模組化新版：輪詢所有啟用的外掛，若外掛有定義 isHeadBlocked 方法，由外掛說了算！
   if (typeof activeMechanisms !== 'undefined') {
@@ -2220,14 +2470,9 @@ function updateCustomActions(dt, pluginCtx) {
 function updatePhysics(dt) {
   let isLowStance = player.crawling || !!(player.customHitbox && player.customHitbox.isLow);
   let curHalfW = player.customHitbox?.halfW ?? (player.crawling ? 52 : 16);
-  let curH = player.customHitbox?.height ?? getStanceHeight(isLowStance);
-  
-  document.getElementById('hp-bar').style.width = `${player.hp}%`;
-  document.getElementById('hp-val').textContent = `${Math.ceil(player.hp)}%`;
-  const hPct = Math.min(100, (player.heat / player.maxHeat) * 100);
-  document.getElementById('heat-bar').style.width = `${hPct}%`;
-  document.getElementById('heat-val').textContent = player.onFire ? '🔥著火!' : `${Math.floor(hPct)}%`;
-
+  let curH = player.customHitbox?.height ?? getStanceHeight(isLowStance);  
+  player.weight = getActiveCharStats().weight;
+  updateStatBarsUI();
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.x += p.vx * dt;
@@ -2424,6 +2669,7 @@ function updatePhysics(dt) {
   curH = player.customHitbox?.height ?? getStanceHeight(isLowStance);
 
   const c = getActiveCharStats();
+  player.weight = c.weight;
   player.scraping = false;
   let currentZone = null;
   for (const z of FRICTION_ZONES) {
@@ -2477,7 +2723,25 @@ function updatePhysics(dt) {
 
 
 
-  player.slapping = input.slap && player.onFire;
+  if (!input.slap) {
+    player.selfIgniteLock = false;
+  }
+
+  // Peter 專屬：未著火時按住 Y 雙手上下摩擦頭自主累積熱度
+  if (c.canSelfIgnite && input.slap && !player.onFire && !player.selfIgniteLock && player.grounded && !player.climbing && !player.crawling && !player.rolling) {
+    player.rubbingHead = true;
+    player.heat = Math.min(player.maxHeat, player.heat + 65 * dt);
+    if (Math.random() < 0.45) addSparks(player.x, player.y - curH + 10, false);
+    if (player.heat >= player.maxHeat) {
+      player.onFire = true;
+      player.rubbingHead = false;
+      player.selfIgniteLock = true; // 鎖定直到放開 Y，避免一著火立刻拍熄
+    }
+  } else {
+    player.rubbingHead = false;
+  }
+
+  player.slapping = input.slap && player.onFire && !player.selfIgniteLock;
 
   let jumpConsumedByStandUp = false;
   if (!player.climbing && !player.lockDefaultMove) {
@@ -2535,6 +2799,15 @@ function updatePhysics(dt) {
     player.vx = player.overrideVx;
   } else if (player.slapping) {
     player.vx *= 0.7;
+  } else if (player.rolling) {
+    player.rollTimer += dt;
+    player.vx = player.dir * (c.speed * 62);
+    if (player.rollTimer >= player.rollDuration) {
+      player.rolling = false;
+      player.rollTimer = 0;
+    }
+  } else if (player.rubbingHead) {
+    player.vx *= 0.65;    
   } else if (player.climbing && activeLadder) {
     const climbSpd = c.speed * 33.8, topCX = activeLadder.topCenterX ?? (activeLadder.x1 + activeLadder.x2) * 0.5, botCX = activeLadder.botCenterX ?? (activeLadder.x1 + activeLadder.x2) * 0.5; player.vy = 0;
     player.x += ((botCX + (1 - Math.max(0, Math.min(1, (player.y - activeLadder.yTop) / (activeLadder.yBottom - activeLadder.yTop)))) * (topCX - botCX)) - player.x) * 10 * dt;
@@ -2600,7 +2873,10 @@ function updatePhysics(dt) {
         player.turning = false;
         player.turnTimer = 0;
       }
-      player.vy = -474;
+      const jumpHeightMul = player.onFire
+        ? (c.fireJumpHeightMul ?? c.jumpHeightMul ?? 1.0)
+        : (c.jumpHeightMul ?? 1.0);
+      player.vy = -474 * Math.sqrt(jumpHeightMul);
       player.grounded = false;
     }
   } else {
@@ -2687,8 +2963,16 @@ function updatePhysics(dt) {
         fallDamage = 25;
       }
 
+      // Peter 超過 1.5 倍身高落地：觸發向前滾地一圈化解衝擊
+      if (fallDist > PHYS_STAND_H * 1.5 && c.rollOnHardLanding && !player.crawling) {
+        player.rolling = true;
+        player.rollTimer = 0;
+        player.landSquatTimer = 0;
+      }
+
       if (fallDamage > 0) {
-        player.hp = Math.max(0, player.hp - fallDamage);
+        const finalFallDamage = Math.round(fallDamage * (c.fallDamageMul ?? 1.0));
+        player.hp = Math.max(0, player.hp - finalFallDamage);
         addSparks(player.x, player.y - 6, true);
         if (player.hp <= 0) {
           player.deathCause = 'fall';
@@ -2751,9 +3035,10 @@ function updatePhysics(dt) {
   }
 
   // 3. 處理減速區 (如天花板壓頂區) 的邊緣阻擋
+  const curStandH = getStandHeight();
   for (const z of FRICTION_ZONES) {
     if (z.requireCrawl && player.y >= z.yMin && player.y <= z.yMax) {
-      const standsIntoRoof = (z.blockBot === undefined) || (player.y - PHYS_STAND_H < z.blockBot);
+      const standsIntoRoof = (z.blockBot === undefined) || (player.y - curStandH < z.blockBot);
       if (standsIntoRoof && !isLowStance) {
         let blockedByZone = false; // 💡 使用專屬變數，避免被步驟 1、2 的普通撞牆干擾
         if (player.x <= z.x1) {
@@ -2771,7 +3056,7 @@ function updatePhysics(dt) {
         }
         // 💡 只有確實撞上壓頂天花板的邊緣時，才擦出火花
         if (blockedByZone) {
-          addSparks(player.x + player.dir * 18, (z.blockBot ?? (player.y - PHYS_STAND_H + 20)), z.intenseSparks);
+          addSparks(player.x + player.dir * 18, (z.blockBot ?? (player.y - curStandH + 20)), z.intenseSparks);
           break;
         }
       }
@@ -2786,6 +3071,32 @@ function updatePhysics(dt) {
   const mFact = (Math.abs(player.vx) + Math.abs(player.vy) * 0.5) / 200;
   if (player.scraping && mFact > 0.05) { player.heat = Math.min(player.maxHeat, player.heat + frictionMul * 26 * Math.max(0.45, mFact) * dt); if (Math.random() < (intenseSparks ? 0.85 : 0.55)) addSparks(player.x, player.y - curH + 8, intenseSparks); } else if (!player.onFire) player.heat = Math.max(0, player.heat - 6 * dt);
   if (player.heat >= player.maxHeat && !player.onFire) player.onFire = true;
+  if (c.dynamicResist) {
+    const dr = c.dynamicResist;
+    const charKey = String(c.id || 'default').toLowerCase();
+    if (!player.charResistStates[charKey]) {
+      player.charResistStates[charKey] = { val: dr.max, burnTimer: 0 };
+    }
+    const rState = player.charResistStates[charKey];
+    const span = Math.max(0, dr.max - dr.min);
+    const decayRate = dr.decayTime > 0 ? span / dr.decayTime : span;
+    const recoverRate = dr.recoverTime > 0 ? span / dr.recoverTime : span;
+
+    if (player.onFire) {
+      rState.burnTimer += dt;
+      if (rState.burnTimer > dr.delay) {
+        const decayDt = Math.min(dt, rState.burnTimer - dr.delay);
+        rState.val = Math.max(dr.min, rState.val - decayRate * decayDt);
+      }
+    } else {
+      rState.burnTimer = 0;
+      if (rState.val < dr.max) {
+        rState.val = Math.min(dr.max, rState.val + recoverRate * dt);
+      }
+    }
+    c.resist = rState.val;
+    updateStatBarsUI(c);
+  }
   if (player.onFire) { 
     player.hp = Math.max(0, player.hp - (60 / c.resist) * dt); 
     if (Math.random() < 0.45) addSmoke(player.x, player.y - curH - 10, false); 
@@ -3564,7 +3875,35 @@ function drawDebugCollisionOverlay() {
   for (const w of SOLID_WALLS) { const wallX = w.x !== undefined ? w.x : ((w.x1 + w.x2) * 0.5); ctx.strokeStyle = '#ff2a55'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(wallX, w.yTop); ctx.lineTo(wallX, w.yBottom); ctx.stroke(); ctx.fillStyle = '#ff2a55'; ctx.beginPath(); ctx.arc(wallX, w.yTop, 4, 0, Math.PI * 2); ctx.arc(wallX, w.yBottom, 4, 0, Math.PI * 2); ctx.fill(); }
   for (const lad of LADDERS) { ctx.fillStyle = 'rgba(0, 210, 255, 0.22)'; ctx.strokeStyle = '#00e1ff'; ctx.lineWidth = 2.5; ctx.fillRect(lad.x1, lad.yTop, lad.x2 - lad.x1, lad.yBottom - lad.yTop); ctx.strokeRect(lad.x1, lad.yTop, lad.x2 - lad.x1, lad.yBottom - lad.yTop); ctx.strokeStyle = '#ffee00'; ctx.beginPath(); ctx.moveTo(lad.botCenterX ?? (lad.x1 + lad.x2) * 0.5, lad.yBottom); ctx.lineTo(lad.topCenterX ?? (lad.x1 + lad.x2) * 0.5, lad.yTop); ctx.stroke(); }
   for (const poly of GROUND_POLYLINES) { if (!poly.pts || poly.pts.length < 2) continue; ctx.strokeStyle = '#00ff66'; ctx.lineWidth = 4.5; ctx.beginPath(); poly.pts.forEach((p, i) => i===0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])); ctx.stroke(); for (const p of poly.pts) { ctx.fillStyle = '#00ff66'; ctx.beginPath(); ctx.arc(p[0], p[1], 5.5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#b8ffcf'; ctx.font = 'bold 12px monospace'; ctx.fillText(`(${p[0]},${p[1]})`, p[0], p[1] + 16); } }
-  for (const m of activeMechanisms) { const def = window.GAME_MECHANISMS_REGISTRY[m.type]; const isFg = (m.layer === 'foreground') || (def && def.isForeground) || (m.type === 'foreground_mask'); ctx.fillStyle = isFg ? 'rgba(255, 140, 0, 0.26)' : 'rgba(74, 105, 189, 0.32)'; ctx.strokeStyle = isFg ? '#ff9f43' : '#70a1ff'; ctx.lineWidth = 2.5; if (isFg) ctx.setLineDash([8, 4]); ctx.fillRect(m.x, m.y, m.width, m.height); ctx.strokeRect(m.x, m.y, m.width, m.height); ctx.setLineDash([]); ctx.fillStyle = isFg ? '#ffbe76' : '#70a1ff'; ctx.font = 'bold 13px monospace'; ctx.fillText(isFg ? `🟠遮罩:${m.type}` : `⚙️${m.type}`, m.x + m.width / 2, m.y - 6); }
+  for (const m of activeMechanisms) {
+    const def = window.GAME_MECHANISMS_REGISTRY[m.type];
+    const isFg = (m.layer === 'foreground') || (def && def.isForeground) || (m.type === 'foreground_mask');
+    ctx.save();
+    ctx.fillStyle = isFg ? 'rgba(255, 140, 0, 0.26)' : 'rgba(74, 105, 189, 0.32)';
+    ctx.strokeStyle = isFg ? '#ff9f43' : '#70a1ff';
+    ctx.lineWidth = 2.5;
+    if (isFg) ctx.setLineDash([8, 4]);
+    if (m.angle) {
+      const cx = m.x + m.width * 0.5;
+      const cy = m.y + m.height * 0.5;
+      ctx.translate(cx, cy);
+      ctx.rotate((m.angle * Math.PI) / 180);
+      ctx.fillRect(-m.width * 0.5, -m.height * 0.5, m.width, m.height);
+      ctx.strokeRect(-m.width * 0.5, -m.height * 0.5, m.width, m.height);
+      ctx.setLineDash([]);
+      ctx.fillStyle = isFg ? '#ffbe76' : '#70a1ff';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText(isFg ? `🟠遮罩:${m.type}` : `⚙️${m.type}`, 0, -m.height * 0.5 - 6);
+    } else {
+      ctx.fillRect(m.x, m.y, m.width, m.height);
+      ctx.strokeRect(m.x, m.y, m.width, m.height);
+      ctx.setLineDash([]);
+      ctx.fillStyle = isFg ? '#ffbe76' : '#70a1ff';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText(isFg ? `🟠遮罩:${m.type}` : `⚙️${m.type}`, m.x + m.width / 2, m.y - 6);
+    }
+    ctx.restore();
+  }
   for (const it of activeItems) { if (it.collected && !it.isHeld && !it.isThrown) continue; ctx.fillStyle = 'rgba(11, 232, 129, 0.32)'; ctx.strokeStyle = '#0be881'; ctx.lineWidth = 2.5; ctx.fillRect(it.x, it.y, it.width, it.height); ctx.strokeRect(it.x, it.y, it.width, it.height); ctx.fillStyle = '#0be881'; ctx.font = 'bold 13px monospace'; ctx.fillText(`🎁${it.type}`, it.x + it.width / 2, it.y - 6); }
   const gx1 = Math.max(0, GOAL_CONDITION.xMin ?? 0), gx2 = Math.min(WORLD_W, GOAL_CONDITION.xMax ?? 245), gy1 = Math.max(0, GOAL_CONDITION.yMin ?? 0), gy2 = Math.min(WORLD_H, GOAL_CONDITION.yMax ?? 575);
   ctx.fillStyle = 'rgba(46, 204, 113, 0.28)'; ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; ctx.fillRect(gx1, gy1, gx2 - gx1, gy2 - gy1); ctx.strokeRect(gx1, gy1, gx2 - gx1, gy2 - gy1); ctx.fillStyle = '#2ecc71'; ctx.font = '900 18px "Microsoft JhengHei"'; ctx.fillText(`🏁 終點判定區`, (gx1 + gx2) / 2, gy1 + 28);
@@ -3573,8 +3912,17 @@ function drawDebugCollisionOverlay() {
   const isLowStance = player.crawling || !!(player.customHitbox && player.customHitbox.isLow);
   const curH = player.customHitbox?.height ?? getStanceHeight(isLowStance); 
   const curHalfW = player.customHitbox?.halfW ?? (player.crawling ? 52 : 16);
-  ctx.strokeStyle = '#ffffff'; 
-  ctx.strokeRect(player.x - curHalfW, player.y - curH, curHalfW * 2, curH); 
+  ctx.strokeStyle = '#ffffff';
+  if (player.customHitbox && typeof player.customHitbox.angle === 'number' && player.customHitbox.width && player.customHitbox.thickness) {
+    const hb = player.customHitbox;
+    ctx.save();
+    ctx.translate(hb.centerX, hb.centerY);
+    ctx.rotate(hb.angle);
+    ctx.strokeRect(-hb.width * 0.5, -hb.thickness * 0.5, hb.width, hb.thickness);
+    ctx.restore();
+  } else {
+    ctx.strokeRect(player.x - curHalfW, player.y - curH, curHalfW * 2, curH);
+  }
   ctx.fillStyle = '#ffea00'; 
   ctx.beginPath(); 
   ctx.arc(player.x, player.y, 5, 0, Math.PI*2); 
@@ -3678,6 +4026,34 @@ function drawPlayerStickman() {
   let hx = 0, hy = -(bh + r + 28);
   ctx.lineCap = ctx.lineJoin = 'round';
 
+  // 統一打包道具繪製，方便在頭與表情之後、外側的手之前繪製
+  const drawItemInHand = (itemFaceDir = d) => {
+    if (!player.holdingItem) return;
+    const heldDef = window.GAME_ITEMS_REGISTRY[player.holdingItem.type];
+    if (heldDef && typeof heldDef.drawHeld === 'function') {
+      heldDef.drawHeld(ctx, player, player.holdingItem, player.holdingItem._img);
+    } else {
+      ctx.save();
+      ctx.translate(itemFaceDir * 22, player.crawling ? -18 : -64);
+      if (player.holdingItem._img && player.holdingItem._img.complete && player.holdingItem._img.naturalWidth > 0) {
+        const iw = player.holdingItem.width || 28, ih = player.holdingItem.height || 28;
+        ctx.drawImage(player.holdingItem._img, -iw / 2, -ih / 2, iw, ih);
+      } else {
+        ctx.fillStyle = player.holdingItem.color || '#00d2d3';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  };
+
+  // 延後至「頭與表情」之後才繪製的前景層（道具 + 外側的手）
+  let drawOuterLayer = null;
+
   let pluginPose = null;
   for (const actId in window.GAME_ACTIONS_REGISTRY) {
     const act = window.GAME_ACTIONS_REGISTRY[actId];
@@ -3690,6 +4066,43 @@ function drawPlayerStickman() {
   if (pluginPose) {
     hx = pluginPose.hx;
     hy = pluginPose.hy;
+    drawOuterLayer = () => {
+      drawItemInHand(d);
+      if (typeof pluginPose.drawForeground === 'function') {
+        pluginPose.drawForeground(ctx, player, c);
+      }
+    };
+  } else if (player.rolling) {
+    const rollP = Math.min(1, player.rollTimer / (player.rollDuration || 0.42));
+    const rollAngle = d * rollP * Math.PI * 2;
+    ctx.save();
+    ctx.translate(0, -34);
+    ctx.rotate(rollAngle);
+
+    // 捲縮成團向前翻滾一圈
+    drawFullLimb(ctx, -4, 8, -14, 16, -6, 22, lw, false, d, limbCol, outCol);
+    drawFullLimb(ctx,  4, 8,  14, 16,  6, 22, lw, false, d, limbCol, outCol);
+    drawShapedTorso(ctx, 0, 0, bw, bh * 0.78, d * 0.4, bodyCol, outCol);
+    drawFullLimb(ctx, -6, -8, -16, 0, -8, 12, lw, true, d, limbCol, outCol);
+    drawFullLimb(ctx,  6, -8,  16, 0,  8, 12, lw, true, d, limbCol, outCol);
+
+    // 捲縮中的頭部
+    const hGradRoll = ctx.createRadialGradient(-d * r * 0.25, -r * 0.25, r * 0.15, 0, -bh * 0.42, r);
+    hGradRoll.addColorStop(0, c.headColor);
+    hGradRoll.addColorStop(0.75, '#b82020');
+    hGradRoll.addColorStop(1, '#7a1212');
+    ctx.fillStyle = hGradRoll;
+    ctx.strokeStyle = outCol;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(0, -bh * 0.42, r * 0.92, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
+    ctx.restore();
+    return;
+    
   } else if (player.ledgeClimbing) {
     const p = player.ledgeProgress, grabRelX = player.ledgeGrabX - player.x, grabRelY = player.ledgeTargetY - player.y;
     let hipX = 0, hipY = -32, bodyTilt = d * 0.15, lKneeX, lKneeY, lFootX, lFootY, rKneeX, rKneeY, rFootX, rFootY;
@@ -3712,11 +4125,15 @@ function drawPlayerStickman() {
       const elb1X = (shX + hand1X) * 0.5 - d * elbowBend, elb1Y = (shY + hand1Y) * 0.5 + 4;
       const elb2X = (shX + hand2X) * 0.5 + d * (elbowBend * 0.7), elb2Y = (shY + hand2Y) * 0.5 + 6;
       drawFullLimb(ctx, shX - 3, shY + 5, elb1X, elb1Y, hand1X, hand1Y, lw, true, d, limbCol, outCol);
-      drawFullLimb(ctx, shX + 3, shY + 5, elb2X, elb2Y, hand2X, hand2Y, lw, true, d, limbCol, outCol);
+      drawOuterLayer = () => {
+        drawFullLimb(ctx, shX + 3, shY + 5, elb2X, elb2Y, hand2X, hand2Y, lw, true, d, limbCol, outCol);
+      };
     } else {
       const k = (p - 0.84) / 0.16;
       drawFullLimb(ctx, shX - 2, shY + 6, shX - 12, shY + 20, shX - 15, shY + 32 * k, lw, true, d, limbCol, outCol);
-      drawFullLimb(ctx, shX + 2, shY + 6, shX + 12, shY + 20, shX + 15, shY + 32 * k, lw, true, d, limbCol, outCol);
+      drawOuterLayer = () => {
+        drawFullLimb(ctx, shX + 2, shY + 6, shX + 12, shY + 20, shX + 15, shY + 32 * k, lw, true, d, limbCol, outCol);
+      };
     }
   } else if (player.ledgeClimbingDown) {
     const p = player.ledgeProgress, grabRelX = player.ledgeGrabX - player.x, grabRelY = player.ledgeStartY - player.y;
@@ -3736,7 +4153,9 @@ function drawPlayerStickman() {
     const elb1X = (shX + hand1X) * 0.5 - d * elbowBend, elb1Y = (shY + hand1Y) * 0.5 - 4;
     const elb2X = (shX + hand2X) * 0.5 + d * (elbowBend * 0.6), elb2Y = (shY + hand2Y) * 0.5 - 2;
     drawFullLimb(ctx, shX - 3, shY + 5, elb1X, elb1Y, hand1X, hand1Y, lw, true, d, limbCol, outCol);
-    drawFullLimb(ctx, shX + 3, shY + 5, elb2X, elb2Y, hand2X, hand2Y, lw, true, d, limbCol, outCol);
+    drawOuterLayer = () => {
+      drawFullLimb(ctx, shX + 3, shY + 5, elb2X, elb2Y, hand2X, hand2Y, lw, true, d, limbCol, outCol);
+    };
   } else if (player.stanceT > 0 && player.stanceT < 1) {
     const p = player.stanceT, isStandingUp = !player.crawling;
     let hipX = 0, hipY = -32, bodyTilt = 0;
@@ -3776,28 +4195,37 @@ function drawPlayerStickman() {
 
     if (isStandingUp) {
       drawFullLimb(ctx, shX - 3, shY + 5, shX - d * 6, shY + 15, shX + d * 8, -2, lw, true, d, limbCol, outCol);
-      drawFullLimb(ctx, shX + 3, shY + 5, shX, shY + 18, shX + d * 16, -2, lw, true, d, limbCol, outCol);
+      drawOuterLayer = () => {
+        drawItemInHand(d);
+        drawFullLimb(ctx, shX + 3, shY + 5, shX, shY + 18, shX + d * 16, -2, lw, true, d, limbCol, outCol);
+      };
     } else {
       drawFullLimb(ctx, shX - 3, shY + 5, shX + d * 10, shY + 15, shX + d * 18, -2, lw, true, d, limbCol, outCol);
-      drawFullLimb(ctx, shX + 3, shY + 5, shX + d * 4, shY + 18, shX + d * 22, -2, lw, true, d, limbCol, outCol);
+      drawOuterLayer = () => {
+        drawItemInHand(d);
+        drawFullLimb(ctx, shX + 3, shY + 5, shX + d * 4, shY + 18, shX + d * 22, -2, lw, true, d, limbCol, outCol);
+      };
     }
   } else if (player.stanceT >= 1) {
     const wv = Math.sin(t * 2.2) * 11;
-    hx = d * (bh * 0.68 + r * 0.6); hy = -(r + 4); // 將原本的 -(r + 14) 改為 -(r + 4)，使爬行時頭也往下貼齊
+    hx = d * (bh * 0.68 + r * 0.6); hy = -(r + 4);
 
-
+    // 內側（後方）手腳與軀幹先畫在頭的下方
     drawFullLimb(ctx, -d * bh * 0.4, -20, -d * (bh * 0.85 - wv), -10, -d * (bh * 1.15 - wv), -2, lw, false, d, limbCol, outCol);
     drawFullLimb(ctx,  d * bh * 0.35, -22,  d * (bh * 0.65 - wv), -10,  d * (bh * 0.55 - wv), -2, lw, true,  d, limbCol, outCol);
-
     drawShapedTorso(ctx, 0, -22, bw, bh, d * 1.32, bodyCol, outCol);
-
     drawFullLimb(ctx, -d * bh * 0.4, -18, -d * (bh * 0.75 + wv), -8, -d * (bh * 1.05 + wv), -2, lw, false, d, limbCol, outCol);
-    if (player.slapping) {
-      const sy = hy - r - 4 + Math.sin(performance.now() * 0.05) * 10;
-      drawFullLimb(ctx, d * bh * 0.35, -22, hx + d * 14, hy - 6, hx, sy, lw, true, d, limbCol, outCol);
-    } else {
-      drawFullLimb(ctx, d * bh * 0.35, -20, d * (bh * 0.75 + wv), -9, d * (bh * 0.65 + wv), -2, lw, true, d, limbCol, outCol);
-    }
+
+    // 道具與外側（前方）手延後至頭與表情之上繪製
+    drawOuterLayer = () => {
+      drawItemInHand(d);
+      if (player.slapping) {
+        const sy = hy - r - 4 + Math.sin(performance.now() * 0.05) * 10;
+        drawFullLimb(ctx, d * bh * 0.35, -22, hx + d * 14, hy - 6, hx, sy, lw, true, d, limbCol, outCol);
+      } else {
+        drawFullLimb(ctx, d * bh * 0.35, -20, d * (bh * 0.75 + wv), -9, d * (bh * 0.65 + wv), -2, lw, true, d, limbCol, outCol);
+      }
+    };
   } else {
     const swing = player.climbing ? Math.sin(t * 2) * 12 : (Math.abs(player.vx) > 5 ? Math.sin(t * 1.8) * 18 : 0);
     let squatOffset = 0, kneeBend = 0;
@@ -3819,32 +4247,6 @@ function drawPlayerStickman() {
     const hipY = -32 + squatOffset + turnBob, shY = -(32 + bh) + squatOffset + turnBob;
     hx = turnFaceD * 4; hy = shY - r + 6;
 
-    // --- 新增：將道具繪製打包成函數，方便安插在身體和前手之間 ---
-    const drawItemInHand = () => {
-      if (!player.holdingItem) return;
-      const heldDef = window.GAME_ITEMS_REGISTRY[player.holdingItem.type];
-      if (heldDef && typeof heldDef.drawHeld === 'function') {
-        heldDef.drawHeld(ctx, player, player.holdingItem, player.holdingItem._img);
-      } else {
-        ctx.save();
-        ctx.translate(turnFaceD * 22, player.crawling ? -18 : -64);
-        if (player.holdingItem._img && player.holdingItem._img.complete && player.holdingItem._img.naturalWidth > 0) {
-          const iw = player.holdingItem.width || 28, ih = player.holdingItem.height || 28;
-          ctx.drawImage(player.holdingItem._img, -iw / 2, -ih / 2, iw, ih);
-        } else {
-          ctx.fillStyle = player.holdingItem.color || '#00d2d3';
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(0, 0, 11, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-    };
-    // ------------------------------------
-
     if (isTurningStand) {
       // 原地轉身連續步伐：雙腿原地交錯換重心、膝蓋微屈、雙拳收於腰際隨轉身擺動，重心鎖定在 X=0
       const stepLift = Math.sin(turnP * Math.PI) * 6;
@@ -3862,26 +4264,37 @@ function drawPlayerStickman() {
       };
 
       const isFacingRight = turnFaceD >= 0;
-      drawTurnArm(!isFacingRight); // 畫後方手
+      drawTurnArm(!isFacingRight); // 先畫後方手（頭與表情下方）
 
       // 軀幹在轉身正中間 (turnP=0.5) 時呈現正面寬度與直立角度
       const turnTorsoW = bw * (1.12 - 0.12 * Math.abs(turnFaceD));
       drawShapedTorso(ctx, 0, shY + bh * 0.5, turnTorsoW, bh, turnFaceD * 0.12, bodyCol, outCol);
 
-      drawItemInHand(); // <--- 插入在這裡：疊在身體和前手之間
-
-      drawTurnArm(isFacingRight);  // 畫前方手
+      // 道具與前方（外側）手延後至頭與表情之上繪製
+      drawOuterLayer = () => {
+        drawItemInHand(turnFaceD);
+        drawTurnArm(isFacingRight);
+      };
     } else {
       drawFullLimb(ctx, -3, hipY, -9 - swing * 0.5 - kneeBend, hipY + 16 - squatOffset * 0.5, -12 - swing, -2, lw, false, d, limbCol, outCol);
       drawFullLimb(ctx,  3, hipY,  9 + swing * 0.5 + kneeBend, hipY + 16 - squatOffset * 0.5,  12 + swing, -2, lw, false, d, limbCol, outCol);
 
+      const isFacingRight = turnFaceD >= 0;
       const drawNormArm = (isLeft) => {
         if (player.slapping) {
           if (isLeft) { const s1 = Math.sin(performance.now() * 0.05) * 10; drawFullLimb(ctx, -bw * 0.4, shY + 6, -r - 16, hy - 4, hx - 6, hy - r - 2 + s1, lw, true, d, limbCol, outCol); }
           else { const s2 = Math.cos(performance.now() * 0.05) * 10; drawFullLimb(ctx,  bw * 0.4, shY + 6,  r + 16, hy - 4, hx + 6, hy - r - 2 + s2, lw, true, d, limbCol, outCol); }
+        } else if (player.rubbingHead) {
+          const rubWave = Math.sin(performance.now() * 0.048) * 14;
+          if (isLeft) {
+            drawFullLimb(ctx, -bw * 0.4, shY + 6, -r - 14, hy + 4 + rubWave * 0.5, hx - r * 0.72, hy - 4 + rubWave, lw, true, d, limbCol, outCol);
+          } else {
+            drawFullLimb(ctx,  bw * 0.4, shY + 6,  r + 14, hy + 4 - rubWave * 0.5, hx + r * 0.72, hy - 4 - rubWave, lw, true, d, limbCol, outCol);
+          }
         } else if (player.customArmPose === 'throw') {
-          if (isLeft) drawFullLimb(ctx, -bw * 0.4, shY + 6, -d * 8, shY + 12, -d * 14, shY + 18, lw, true, d, limbCol, outCol);
-          else drawFullLimb(ctx,  bw * 0.4, shY + 6,  d * 18, shY - 6,  d * 34, shY + 4,  lw, true, d, limbCol, outCol);
+          const isOuterArm = (isLeft === !isFacingRight);
+          if (!isOuterArm) drawFullLimb(ctx, -d * bw * 0.4, shY + 6, -d * 8, shY + 12, -d * 14, shY + 18, lw, true, d, limbCol, outCol);
+          else drawFullLimb(ctx, d * bw * 0.4, shY + 6, d * 18, shY - 6, d * 34, shY + 4, lw, true, d, limbCol, outCol);
         } else if (player.holdingItem) {
           if (isLeft) drawFullLimb(ctx, -bw * 0.4, shY + 6, d * 10, shY + 16, d * 20, shY + 12, lw, true, d, limbCol, outCol);
           else drawFullLimb(ctx,  bw * 0.4, shY + 6, d * 12, shY + 18, d * 22, shY + 14, lw, true, d, limbCol, outCol);
@@ -3899,13 +4312,14 @@ function drawPlayerStickman() {
         }
       };
 
-      const isFacingRight = turnFaceD >= 0;
-      drawNormArm(!isFacingRight); // 畫後方手
+      drawNormArm(!isFacingRight); // 先畫後方手（頭與表情下方）
       drawShapedTorso(ctx, 0, shY + bh * 0.5, bw, bh, player.climbing ? 0 : d * 0.12, bodyCol, outCol);
 
-      drawItemInHand(); // <--- 插入在這裡：疊在身體和前手之間
-
-      drawNormArm(isFacingRight);  // 畫前方手
+      // 道具（頭與表情上方、外側手下方）與外側手（最上層）延後繪製
+      drawOuterLayer = () => {
+        drawItemInHand(d);
+        drawNormArm(isFacingRight);
+      };
     }
   }
 
@@ -3916,7 +4330,13 @@ function drawPlayerStickman() {
     ? (player.turnFromDir * (1 - headTurnSmooth) + player.turnToDir * headTurnSmooth)
     : d;
 
-
+  const headTiltAngle = player.bodyAngle || 0;
+  ctx.save();
+  if (headTiltAngle !== 0) {
+    ctx.translate(hx, hy);
+    ctx.rotate(headTiltAngle);
+    ctx.translate(-hx, -hy);
+  }
 
   if (c.ponytail) {
     const tailDir = Math.abs(faceD) < 0.15 ? -player.turnToDir : -Math.sign(faceD);
@@ -4018,8 +4438,26 @@ function drawPlayerStickman() {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
+    if (player.rubbingHead) {
+      // 眉毛翹起、眉心微皺的用力表情
+      ctx.strokeStyle = outCol;
+      ctx.lineWidth = 3.0;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(ex - eyeSep - r * 0.22, ey - r * 0.44);
+      ctx.lineTo(ex - eyeSep + r * 0.14, ey - r * 0.22);
+      ctx.moveTo(ex + eyeSep + r * 0.22, ey - r * 0.44);
+      ctx.lineTo(ex + eyeSep - r * 0.14, ey - r * 0.22);
+      ctx.stroke();
+    }   
   }
   ctx.restore();
+  ctx.restore();
+
+  // 在頭與表情畫完後，依序繪製「道具」與「外側（前方）的手」
+  if (drawOuterLayer) {
+    drawOuterLayer();
+  }
 
 
   if (nearestInteractableItem && !player.holdingItem && !player.dying) {
@@ -4197,9 +4635,92 @@ function loop(now) {
   else if (gameState === STATE.STAGE_SELECT) { updateMenuLogic(dt); drawStageSelectScreen(); }
   else if (gameState === STATE.STAGE_LOADING) { drawStageLoadingScreen(dt); }
   /* 👇 修改開始：加入 STAGE_HELP 與 RESTART_CONFIRM 迴圈處理 👇 */
-  else if (gameState === STATE.PLAYING || gameState === STATE.STAGE_HELP || gameState === STATE.RESTART_CONFIRM) {
-    if (gameState === STATE.STAGE_HELP || gameState === STATE.RESTART_CONFIRM) updateMenuLogic(dt);
-    else updatePhysics(dt);
+  else if (gameState === STATE.PLAYING || gameState === STATE.STAGE_HELP || gameState === STATE.RESTART_CONFIRM || gameState === STATE.CUTSCENE) {
+    if (gameState === STATE.STAGE_HELP || gameState === STATE.RESTART_CONFIRM) {
+      updateMenuLogic(dt);
+    } else if (gameState === STATE.CUTSCENE) {
+
+      // 👇 新增：長按 A 跳過動畫邏輯 👇
+      if (input.jump) {
+        skipProgress += dt;
+        if (skipProgress >= 1.5) { // 繞滿 1.5 秒即跳過
+          const videoEl = document.getElementById('cutscene-player');
+          if (videoEl) {
+            videoEl.pause();
+            if (videoEl.onended) videoEl.onended(); // 手動觸發結束事件
+          }
+          skipProgress = 0;
+        }
+      } else {
+        skipProgress = 0; // 中途放開，進度歸零
+      }
+      
+      // 取得 UI 畫布並繪製跳過按鈕
+      const uiCanvas = document.getElementById('cutscene-ui');
+      if (uiCanvas) {
+        const uiCtx = uiCanvas.getContext('2d');
+        uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+        
+        const cx = uiCanvas.width - 70;
+        const cy = uiCanvas.height - 70;
+        const radius = 22;
+
+        uiCtx.save();
+        // 半透明黑底框
+        uiCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        uiCtx.beginPath();
+        uiCtx.roundRect(cx - 120, cy - 30, 160, 60, 30);
+        uiCtx.fill();
+        
+        // 提示文字
+        uiCtx.fillStyle = '#ffffff';
+        uiCtx.font = 'bold 20px "Microsoft JhengHei"';
+        uiCtx.textAlign = 'right';
+        uiCtx.textBaseline = 'middle';
+        uiCtx.fillText("長按跳過", cx - 35, cy + 2);
+
+        // A 按鈕圖示底盤 (復刻 drawXboxBtnIcon 風格)
+        const grad = uiCtx.createRadialGradient(cx - radius * 0.28, cy - radius * 0.28, radius * 0.1, cx, cy, radius);
+        grad.addColorStop(0, '#383542');
+        grad.addColorStop(0.65, '#191720');
+        grad.addColorStop(1, '#0d0c12');
+        uiCtx.fillStyle = grad;
+        uiCtx.strokeStyle = '#239b56';
+        uiCtx.lineWidth = 2.5;
+        uiCtx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        uiCtx.shadowBlur = 6;
+        uiCtx.beginPath();
+        uiCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+        uiCtx.fill();
+        uiCtx.stroke();
+        uiCtx.shadowBlur = 0;
+
+        // A 按鈕文字
+        uiCtx.fillStyle = '#2ecc71';
+        uiCtx.shadowColor = 'rgba(46, 204, 113, 0.45)';
+        uiCtx.shadowBlur = 8;
+        uiCtx.font = `900 ${Math.round(radius * 1.15)}px "Segoe UI", "Arial Black", sans-serif`;
+        uiCtx.textAlign = 'center';
+        uiCtx.textBaseline = 'middle';
+        uiCtx.fillText('A', cx, cy + 2);
+        
+        // 長按進度環
+        if (skipProgress > 0) {
+          uiCtx.shadowBlur = 0;
+          uiCtx.strokeStyle = '#2ecc71';
+          uiCtx.lineWidth = 4.5;
+          uiCtx.lineCap = 'round';
+          uiCtx.beginPath();
+          // 從正上方 (-Math.PI / 2) 開始繞圈
+          uiCtx.arc(cx, cy, radius + 8, -Math.PI / 2, -Math.PI / 2 + (skipProgress / 1.5) * Math.PI * 2);
+          uiCtx.stroke();
+        }
+        uiCtx.restore();
+      }
+      // 👆 新增結束 👆
+    } else {
+      updatePhysics(dt); 
+    }
     ctx.save();
     if (followCameraMode) { const scale = 1.05, viewW = canvas.width / scale, viewH = canvas.height / scale, camX = Math.max(viewW / 2, Math.min(WORLD_W - viewW / 2, player.x)), camY = Math.max(viewH / 2, Math.min(WORLD_H - viewH / 2, player.y - 90)); ctx.scale(scale, scale); ctx.translate(viewW / 2 - camX, viewH / 2 - camY); }
     else { const scale = Math.min(canvas.width / WORLD_W, canvas.height / WORLD_H), offsetX = (canvas.width - WORLD_W * scale) / 2, offsetY = (canvas.height - WORLD_H * scale) / 2; ctx.translate(offsetX, offsetY); ctx.scale(scale, scale); }

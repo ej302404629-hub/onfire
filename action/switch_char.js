@@ -4,17 +4,23 @@ window.registerAction('switch_char', {
   lastPressTime: 0,
   
   onTrigger: function(player, pluginCtx) {
+    // 角色著火時禁止雙擊換角，並重置計時避免滅火連按時誤觸
+    if (player.onFire) {
+      this.lastPressTime = 0;
+      return;
+    }
+
     const now = performance.now();
     
     // 判斷兩次按下時間差是否小於 400 毫秒 (雙擊)
     if (now - this.lastPressTime < 400) {
       
-      // 💡 【新增判斷】檢查是否為第四關(含)以後
+      // 💡 【新增判斷】檢查是否為第三關(含)以後
       // 從主程式的全域變數中取得當前關卡資訊
       if (typeof loadedStages !== 'undefined' && loadedStages.length > 0) {
         const currentStage = loadedStages[selectedStageIdx];
-        if (currentStage && currentStage.stageNum < 3) {
-          // 如果關卡編號小於 4，直接中斷執行，不給換角
+        if (currentStage && currentStage.stageNum < 1) {
+          // 如果關卡編號小於 3，直接中斷執行，不給換角
           return;
         }
       }

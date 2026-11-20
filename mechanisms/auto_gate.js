@@ -63,9 +63,10 @@ window.registerMechanismType("auto_gate", {
     mech.openDist = mech.openDistance || mech.baseHeight;
     mech.openDir = dir;
     
-    mech.internalProgress = 0; // 用來接收按鈕傳來的訊號
-    mech.visualProgress = 0;   // 木門獨立的物理移動進度，防止被按鈕綁架
+    mech.internalProgress = 0;  // 用來接收按鈕傳來的訊號
+    mech.visualProgress = 0;    // 木門獨立的物理移動進度，防止被按鈕綁架
     mech.currentCloseTimer = 0; // 關門延遲計時器
+    mech.currentOpenDist = 0;   // 目前已開啟的像素距離
   },
 
   update: function(mech, player, dt, ctx) {
@@ -93,42 +94,68 @@ window.registerMechanismType("auto_gate", {
       }
     }
 
-    // 依據當前進度計算開啟的實際像素距離
-    const currentOpenDist = mech.openDist * mech.visualProgress;
+    // 依據當前進度計算開啟的實際像素距離，並限制在門高範圍內
+    const rawOpenDist = mech.openDist * mech.visualProgress;
+    const clampedDist = Math.max(0, Math.min(rawOpenDist, mech.baseHeight));
+    mech.currentOpenDist = clampedDist;
 
-    // 更新實體座標以產生位移效果
+    // 捲門式更新碰撞範圍：往上收進原頂端，往下收進原底端
     if (mech.openDir === 'up') {
-      mech.y = mech.baseY - currentOpenDist;
+      mech.y = mech.baseY;
+      mech.height = Math.max(0, mech.baseHeight - clampedDist);
     } else {
-      mech.height = mech.baseHeight - currentOpenDist;
+      mech.y = mech.baseY + clampedDist;
+      mech.height = Math.max(0, mech.baseHeight - clampedDist);
     }
-
-    // 防呆處理，避免高度變為負數
-    if (mech.height < 0) mech.height = 0;
   },
 
   draw: function(ctx, mech, img) {
+    if (mech.height <= 0) return;
+
+    const baseY = (mech.baseY !== undefined) ? mech.baseY : mech.y;
+    const drawHeight = mech.baseHeight || mech.height;
+    const openOffset = mech.currentOpenDist || 0;
+    const drawY = (mech.openDir === 'up') ? (baseY - openOffset) : mech.y;
+
     ctx.save();
+    // 裁切在目前實際可見的門框範圍內，避免門板超出天花板或地板
+    ctx.beginPath();
+    ctx.rect(mech.x, mech.y, mech.width, mech.height);
+    ctx.clip();
+
     // 優先使用主程式透過 texture 屬性預載並傳入的圖片 (img)
     if (img && img.complete && img.naturalWidth !== 0) {
-      ctx.drawImage(img, mech.x, mech.y, mech.width, mech.height);
-    } else if (!window.drawEntityTexture(ctx, mech, img)) {
-      ctx.fillStyle = '#4b6584';
-      ctx.strokeStyle = '#3867d6';
-      ctx.lineWidth = 3;
-      ctx.fillRect(mech.x, mech.y, mech.width, mech.height);
-      ctx.strokeRect(mech.x, mech.y, mech.width, mech.height);
-      
-      ctx.beginPath();
-      ctx.rect(mech.x, mech.y, mech.width, mech.height);
-      ctx.clip();
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-      ctx.lineWidth = 6;
-      for(let y = mech.y - 20; y < mech.y + mech.height + 20; y += 18) {
-         ctx.beginPath();
-         ctx.moveTo(mech.x, y);
-         ctx.lineTo(mech.x + mech.width, y + 12);
-         ctx.stroke();
+      ctx.drawImage(img, mech.x, drawY, mech.width, drawHeight);
+    } else {
+      let drawnByHelper = false;
+      if (typeof window.drawEntityTexture === 'function') {
+        const origY = mech.y;
+        const origH = mech.height;
+        mech.y = drawY;
+        mech.height = drawHeight;
+        try {
+          drawnByHelper = !!window.drawEntityTexture(ctx, mech, img);
+        } finally {
+          mech.y = origY;
+          mech.height = origH;
+        }
+      }
+
+      if (!drawnByHelper) {
+        ctx.fillStyle = '#4b6584';
+        ctx.strokeStyle = '#3867d6';
+        ctx.lineWidth = 3;
+        ctx.fillRect(mech.x, drawY, mech.width, drawHeight);
+        ctx.strokeRect(mech.x, drawY, mech.width, drawHeight);
+
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 6;
+        for (let y = drawY - 20; y < drawY + drawHeight + 20; y += 18) {
+          ctx.beginPath();
+          ctx.moveTo(mech.x, y);
+          ctx.lineTo(mech.x + mech.width, y + 12);
+          ctx.stroke();
+        }
       }
     }
     ctx.restore();
