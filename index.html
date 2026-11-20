@@ -4222,7 +4222,7 @@ function drawPlayerStickman() {
       };
     }
   } else if (player.stanceT >= 1) {
-    const wv = Math.sin(t * 2.2) * 11;
+    const wv = Math.abs(player.vx) > 5 ? Math.sin(t * 2.2) * 11 : 0;
     hx = d * (bh * 0.68 + r * 0.6); hy = -(r + 4);
 
     // 內側（後方）手腳與軀幹先畫在頭的下方
