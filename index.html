@@ -1889,11 +1889,12 @@ function pollHardwareGamepad() {
     if (typeof btn === 'number') return btn > 0.4;
     return !!(btn.pressed || btn.value > 0.4);
   };
-
+  let activePadCount = 0;
   for (let i = 0; i < pads.length; i++) {
     const gp = pads[i];
     if (!gp || !gp.connected) continue;
     hasAnyPad = true;
+    activePadCount++;
 
     const axes = gp.axes || [];
     const btns = gp.buttons || [];
@@ -1918,35 +1919,31 @@ function pollHardwareGamepad() {
       }
     }
 
-    // 2. 非標準模式 (常見於 Android HID) 的十字鍵獨立軸 (axes[6], axes[7]) 與苦力帽 (axes[9])
-    if (!isStandard) {
-      if (axes.length >= 8) {
-        const dx = Number.isFinite(axes[6]) ? axes[6] : 0;
-        const dy = Number.isFinite(axes[7]) ? axes[7] : 0;
-        // 僅在偵測過歸零狀態後才啟用，避免把預設 -1 的板機軸誤當方向
-        if (Math.abs(dx) < 0.2 && Math.abs(dy) < 0.2) {
-          gamepadDpadAxisSafe[i] = true;
-        }
-        if (gamepadDpadAxisSafe[i]) {
-          if (dx < -0.5) gLeft = true;
-          if (dx >  0.5) gRight = true;
-          if (dy < -0.5) gUp = true;
-          if (dy >  0.5) gDown = true;
-        }
+    // 2. 十字鍵獨立軸 (axes[6], axes[7]) 與苦力帽 (axes[9])：無論是否 standard 皆採安全歸零判定
+    if (axes.length >= 8) {
+      const dx = Number.isFinite(axes[6]) ? axes[6] : 0;
+      const dy = Number.isFinite(axes[7]) ? axes[7] : 0;
+      if (Math.abs(dx) < 0.2 && Math.abs(dy) < 0.2) {
+        gamepadDpadAxisSafe[i] = true;
       }
+      if (gamepadDpadAxisSafe[i]) {
+        if (dx < -0.5) gLeft = true;
+        if (dx >  0.5) gRight = true;
+        if (dy < -0.5) gUp = true;
+        if (dy >  0.5) gDown = true;
+      }
+    }
 
-      if (axes.length >= 10) {
-        const hat = axes[9];
-        if (Number.isFinite(hat)) {
-          // 必須曾回報標準 HID 苦力帽中立值 (> 1.1，例如 3.2857) 才視為苦力帽
-          if (hat > 1.1) {
-            gamepadRadialHatReady[i] = true;
-          } else if (gamepadRadialHatReady[i] && hat >= -1.05 && hat <= 1.05) {
-            if (hat <= -0.65 || hat >= 0.9)  gUp = true;
-            if (hat >= -0.2  && hat <= 0.5)  gDown = true;
-            if (hat >= -0.8  && hat <= -0.05) gRight = true;
-            if (hat >= 0.35  && hat <= 1.05)  gLeft = true;
-          }
+    if (!isStandard && axes.length >= 10) {
+      const hat = axes[9];
+      if (Number.isFinite(hat)) {
+        if (hat > 1.1) {
+          gamepadRadialHatReady[i] = true;
+        } else if (gamepadRadialHatReady[i] && hat >= -1.05 && hat <= 1.05) {
+          if (hat <= -0.65 || hat >= 0.9)  gUp = true;
+          if (hat >= -0.2  && hat <= 0.5)  gDown = true;
+          if (hat >= -0.8  && hat <= -0.05) gRight = true;
+          if (hat >= 0.35  && hat <= 1.05)  gLeft = true;
         }
       }
     }
@@ -1962,11 +1959,19 @@ function pollHardwareGamepad() {
     if (isBtnPressed(btns[2]) || isBtnPressed(btns[4])) gX = true;
     if (isBtnPressed(btns[3])) gY = true;
 
-    if (!debugSummary) {
-      const axPreview = Array.from(axes).slice(0, 6).map((v, idx) => `${idx}:${Number(v).toFixed(2)}`).join(' ');
-      debugSummary = `🎮 [${gp.mapping || 'raw'}] ${String(gp.id || '').slice(0, 22)} | ${axPreview}`;
+    const pressedBtns = [];
+    for (let b = 0; b < btns.length; b++) {
+      if (isBtnPressed(btns[b])) pressedBtns.push(b);
+    }
+    const hasMotion = Array.from(axes).some(v => Number.isFinite(v) && Math.abs(v) > 0.15);
+
+    if (!debugSummary || hasMotion || pressedBtns.length > 0) {
+      const axPreview = Array.from(axes).slice(0, 8).map((v, idx) => `${idx}:${Number(v).toFixed(2)}`).join(' ');
+      const btnPreview = pressedBtns.length > 0 ? pressedBtns.join(',') : '-';
+      debugSummary = `🎮 #${i}(共${activePadCount})[${gp.mapping || 'raw'}] ${String(gp.id || '').slice(0, 16)} | A(${axes.length}): ${axPreview} | B:${btnPreview}`;
     }
   }
+
 
   gamepadDebugText = debugSummary;
 
@@ -4316,25 +4321,60 @@ function drawPlayerStickman() {
       };
     }
   } else if (player.stanceT >= 1) {
-    const wv = Math.abs(player.vx) > 5 ? Math.sin(t * 2.2) * 11 : 0;
-    hx = d * (bh * 0.68 + r * 0.6); hy = -(r + 4);
+    const isMoving = Math.abs(player.vx) > 5;
+    const phase = t * 2.2;
+    const bodyBob = isMoving ? Math.abs(Math.sin(phase)) * 1.8 : 0;
+
+    // 軀幹水平低趴，關節起點貼合骨盆與肩膀
+    const torsoY = -20 - bodyBob;
+    const hipX = -d * bh * 0.42, hipY = torsoY + 1.5;
+    const shX = d * bh * 0.38, shY = torsoY - 1.5;
+    const shinLen = Math.max(15, bh * 0.52);
+    const forearmLen = Math.max(14, bh * 0.48);
+
+    // 對側手腳交替爬行（前伸時微抬離地，後推時緊貼地面）
+    const strideLeg = 8, strideArm = 9, liftH = 5;
+    const bLegSlide = isMoving ? Math.sin(phase) * strideLeg : 0;
+    const bLegLift  = isMoving ? Math.max(0, Math.cos(phase)) * liftH : 0;
+    const fLegSlide = isMoving ? Math.sin(phase + Math.PI) * strideLeg : 0;
+    const fLegLift  = isMoving ? Math.max(0, Math.cos(phase + Math.PI)) * liftH : 0;
+
+    const bArmSlide = isMoving ? Math.sin(phase + Math.PI) * strideArm : 0;
+    const bArmLift  = isMoving ? Math.max(0, Math.cos(phase + Math.PI)) * liftH : 0;
+    const fArmSlide = isMoving ? Math.sin(phase) * strideArm : 0;
+    const fArmLift  = isMoving ? Math.max(0, Math.cos(phase)) * liftH : 0;
+
+    // 雙腿：大腿向下、膝蓋彎曲跪地、小腿貼地向後伸展
+    const bKneeX = -d * (bh * 0.44 + 4) + d * bLegSlide, bKneeY = -3 - bLegLift;
+    const bFootX = bKneeX - d * shinLen,                  bFootY = -3 - bLegLift * 0.7;
+    const fKneeX = -d * (bh * 0.34) + d * fLegSlide,      fKneeY = -3 - fLegLift;
+    const fFootX = fKneeX - d * shinLen,                  fFootY = -3 - fLegLift * 0.7;
+
+    // 雙臂：上臂向下、手肘彎曲著地、前臂貼地向前伸展
+    const bElbX  = d * (bh * 0.42 + 4) + d * bArmSlide,   bElbY  = -3 - bArmLift;
+    const bHandX = bElbX + d * forearmLen,                bHandY = -4 - bArmLift * 0.6;
+    const fElbX  = d * (bh * 0.36) + d * fArmSlide,       fElbY  = -3 - fArmLift;
+    const fHandX = fElbX + d * forearmLen,                fHandY = -4 - fArmLift * 0.6;
+
+    hx = d * (bh * 0.68 + r * 0.6); hy = -(r + 4) - bodyBob;
 
     // 內側（後方）手腳與軀幹先畫在頭的下方
-    drawFullLimb(ctx, -d * bh * 0.4, -20, -d * (bh * 0.85 - wv), -10, -d * (bh * 1.15 - wv), -2, lw, false, d, limbCol, outCol);
-    drawFullLimb(ctx,  d * bh * 0.35, -22,  d * (bh * 0.65 - wv), -10,  d * (bh * 0.55 - wv), -2, lw, true,  d, limbCol, outCol);
-    drawShapedTorso(ctx, 0, -22, bw, bh, d * 1.32, bodyCol, outCol);
-    drawFullLimb(ctx, -d * bh * 0.4, -18, -d * (bh * 0.75 + wv), -8, -d * (bh * 1.05 + wv), -2, lw, false, d, limbCol, outCol);
+    drawFullLimb(ctx, hipX, hipY, bKneeX, bKneeY, bFootX, bFootY, lw, false, d, limbCol, outCol);
+    drawFullLimb(ctx, shX,  shY,  bElbX,  bElbY,  bHandX, bHandY, lw, true,  d, limbCol, outCol);
+    drawShapedTorso(ctx, 0, torsoY, bw, bh, d * 1.48, bodyCol, outCol);
+    drawFullLimb(ctx, hipX, hipY + 1, fKneeX, fKneeY, fFootX, fFootY, lw, false, d, limbCol, outCol);
 
     // 道具與外側（前方）手延後至頭與表情之上繪製
     drawOuterLayer = () => {
       drawItemInHand(d);
       if (player.slapping) {
         const sy = hy - r - 4 + Math.sin(performance.now() * 0.05) * 10;
-        drawFullLimb(ctx, d * bh * 0.35, -22, hx + d * 14, hy - 6, hx, sy, lw, true, d, limbCol, outCol);
+        drawFullLimb(ctx, shX, shY, hx + d * 14, hy - 6, hx, sy, lw, true, d, limbCol, outCol);
       } else {
-        drawFullLimb(ctx, d * bh * 0.35, -20, d * (bh * 0.75 + wv), -9, d * (bh * 0.65 + wv), -2, lw, true, d, limbCol, outCol);
+        drawFullLimb(ctx, shX, shY + 1, fElbX, fElbY, fHandX, fHandY, lw, true, d, limbCol, outCol);
       }
     };
+
   } else {
     const swing = player.climbing ? Math.sin(t * 2) * 12 : (Math.abs(player.vx) > 5 ? Math.sin(t * 1.8) * 18 : 0);
     let squatOffset = 0, kneeBend = 0;
